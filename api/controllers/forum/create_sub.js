@@ -14,14 +14,14 @@ export default async (req, res) => {
         return;
       }
       const thread = THREAD_MODEL.CREATE(req.body, req.arguments.slug)
-      req.status(201).send(thread)
+      res.status(201).send(thread)
     } catch (e) {
       const thread = await THREAD_MODEL.GET(req.arguments.slug)
-      req.status(409).send(thread)
+      res.status(409).send(thread)
     }
 
   } else {
-    req.status(400).send({
+    res.status(400).send({
       message: `
       Ветка обсуждения имеет поля
       title: string

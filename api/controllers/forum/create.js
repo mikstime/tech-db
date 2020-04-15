@@ -27,11 +27,13 @@ export default async (req, res) => {
     }
     
   } else {
-    res.status(400).send(`
+    res.status(400).send({
+      message: `
     Форум имеет поля
     title: string
     user: string
     slug: string
-    `)
+    `
+    })
   }
 }

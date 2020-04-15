@@ -4,9 +4,9 @@ export default async (req, res) => {
   if(POST_MODEL.validAny(req.body)) {
     try {
       const post = await POST_MODEL.UPDATE(req.body, req.arguments.id)
-      req.status(200).send(post)
+      res.status(200).send(post)
     } catch (e) {
-      req.status(404).send({
+      res.status(404).send({
         "message": "Can't find user with id #42\n"
       })
     }
