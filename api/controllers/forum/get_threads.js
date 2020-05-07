@@ -1,7 +1,8 @@
 import FORUM_MODEL from '../../models/forum'
 export default async (req, res) => {
   try {
-    const threads = FORUM_MODEL.GET_THREADS(req.arguments.slug)
+    const forum = await FORUM_MODEL.GET(req.params.slug)
+    const threads = await FORUM_MODEL.GET_THREADS(req.params.slug)
     res.status(200).send(threads)
   } catch (e) {
     res.status(404).send({

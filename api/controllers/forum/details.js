@@ -3,7 +3,7 @@ import FORUM_MODEL from '../../models/forum'
 export default async (req, res) => {
   
   try {
-    const forum = await FORUM_MODEL.GET(req.arguments.slug)
+    const forum = await FORUM_MODEL.GET(req.params.slug)
     res.status(200).send(forum)
     
   } catch (e) {

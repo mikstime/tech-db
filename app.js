@@ -17,10 +17,10 @@ app.use('/user/', USER_ROUTES)
 app.use('/forum/', FORUM_ROUTES)
 app.use('/post/', POST_ROUTES)
 app.use('/service/', SERVICE_ROUTES)
-app.use('/threads/', THREAD_ROUTES)
+app.use('/thread/', THREAD_ROUTES)
 
 app.use((req, res) => {
   res.write('Success')
   res.send()
 })
-app.listen(8000)
+app.listen(process.env.HTTP_PORT)

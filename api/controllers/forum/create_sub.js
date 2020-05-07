@@ -1,28 +1,29 @@
-import FORUM_MODEL from '../../models/forum'
 import THREAD_MODEL from '../../models/thread'
 
 export default async (req, res) => {
   
-  if ( THREAD_MODEL.valid(req.body)) {
+  if ( THREAD_MODEL.valid(req.body) ) {
     try {
-      try {
-        await FORUM_MODEL.GET(req.arguments.slug)
-      } catch (e) {
+      const thread = await THREAD_MODEL.CREATE(req.body, req.params.slug)
+      if ( !thread ) {
         res.status(404).send({
-          "message": "Can't find user with id #42\n"
+          message : 'User or forum was not found'
         })
-        return;
+        return
       }
-      const thread = THREAD_MODEL.CREATE(req.body, req.arguments.slug)
       res.status(201).send(thread)
-    } catch (e) {
-      const thread = await THREAD_MODEL.GET(req.arguments.slug)
-      res.status(409).send(thread)
+    } catch ( e ) {
+      try {
+        const thread = await THREAD_MODEL.GET(req.body.slug)
+        res.status(409).send(thread)
+      } catch ( e ) {
+        res.status(500).send()
+      }
     }
-
+    
   } else {
     res.status(400).send({
-      message: `
+      message : `
       Ветка обсуждения имеет поля
       title: string
       author: string

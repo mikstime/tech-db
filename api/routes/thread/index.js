@@ -9,9 +9,9 @@ import {
   vote,
 } from '../../controllers/thread'
 
-router.post('/create/', create)
+router.post('/:slug/create/', create)
 router.get('/:slug/details', details)
-router.post('/:slug/details', details)
+router.post('/:slug/details', change)
 router.get('/:slug/posts', posts)
 router.post('/:slug/vote', vote)
 

@@ -1,12 +1,11 @@
 {
   "NODE_ENV" : "dev",
   "env"  : {
-      "MONGO_ATLAS_PASS" : "2dPQ7L0877mxbQPv",
       "HTTP_PORT" : 8000,
-      "PGUSER": "dbuser",
-      "PGHOST": "database.server.com",
-      "PGPASSWORD": "secretpassword",
-      "PGDATABASE": "mydb",
-      "PGPORT": 3211
+      "PGUSER": "docker",
+      "PGHOST": "localhost",
+      "PGPASSWORD": "docker",
+      "PGDATABASE": "docker",
+      "PGPORT": 5432
     }
 }
