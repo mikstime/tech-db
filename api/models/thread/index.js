@@ -182,6 +182,7 @@ const GET_POSTS = async (slug, query) => {
     
     const SINCE = Number(query.since) ? `AND post.id > ${query.since}` : ''
     if ( query.sort === 'flat' ) {
+      const SINCE = Number(query.since) ? `AND post.id ${ORDER_TYPE === 'DESC' ? '<' : '>'} ${query.since}` : ''
       //  parent, author, message, forum, thread, created,
       const posts = await client.query(`
         SELECT id, parent, author, message, forum, thread, created
@@ -198,7 +199,7 @@ const GET_POSTS = async (slug, query) => {
       if(query.since) {
         const path = (await client.query(`
       SELECT path FROM post WHERE id=$1`, [query.since])).rows[0].path
-        SINCE = `WHERE path > '${path}'`
+        SINCE = `WHERE path ${ORDER_TYPE === 'DESC' ? '<' : '>'} '${path}'`
       }
       const posts = await client.query(`
       WITH RECURSIVE tree AS (
@@ -228,7 +229,8 @@ const GET_POSTS = async (slug, query) => {
       if(query.since) {
         const path = (await client.query(`
       SELECT path FROM post WHERE id=$1`, [query.since])).rows[0].path
-        SINCE = `WHERE path > '${path}'`
+        // SINCE = `AND path >= '${path}'`
+        SINCE = `AND post.path ${ORDER_TYPE === 'DESC' ? '<' : '>'} '${path}'`
       }
       const posts = await client.query(`
       WITH RECURSIVE tree AS (
@@ -236,34 +238,30 @@ const GET_POSTS = async (slug, query) => {
         ARRAY[]::LTREE[] || post.path AS sortable,
         id, parent, author, message, forum, thread, created, path
         FROM post
-        WHERE parent = 0 AND thread=$1
+        WHERE parent = 0 AND thread=$1 ${SINCE}
         ${LIMIT}
         )
         UNION ALL
         SELECT
-        tree.sortable ||  subpath(post.path, -1, 1),
+        tree.sortable ||  post.path,
         post.id, post.parent, post.author, post.message,
         post.forum, post.thread, post.created, post.path
   FROM post, tree
   WHERE post.parent = tree.id
       )
-      SELECT * FROM tree ${SINCE}
-      ORDER BY path ${ORDER_TYPE}, id ASC
+      SELECT *, subpath(path, 0, 1) as st FROM tree
+      ORDER BY st ${ORDER_TYPE}, path ASC
       `, [threadId])
-  
+
       await client.query('COMMIT')
       return posts.rows.map(r => {delete r.sortable; delete r.path;return r;})
-      // const posts = await client.query(`
-      //   SELECT id, parent, author, message, forum, thread, created, subpath(path, 0, 1) AS start
-      //   FROM post WHERE thread=$1 ${SINCE}
-      //   ORDER BY start ${ORDER_TYPE}, id ASC ${LIMIT}`, [ threadId ])
-      //
-      // await client.query('COMMIT')
-      // return posts.rows.map(p => {delete p.start; return p})
     }
+  
+    // const SINCE2 = Number(query.since) ? `AND post.id > ${query.since}` : ''
+    const SINCE2 = Number(query.since) ? `AND post.id ${ORDER_TYPE === 'DESC' ? '<' : '>'} ${query.since}` : ''
     const posts = await client.query(`
         SELECT id, parent, author, message, forum, thread, created
-        FROM post WHERE thread=$1 ${SINCE}
+        FROM post WHERE thread=$1 ${SINCE2}
         ORDER BY id ${ORDER_TYPE} ${LIMIT}`, [ threadId ])
     
     await client.query('COMMIT')
