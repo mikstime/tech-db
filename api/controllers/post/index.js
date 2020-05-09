@@ -1,5 +1,5 @@
 import change from './change'
-import details from '../forum/details'
+import details from './details'
 
 export {
   change,

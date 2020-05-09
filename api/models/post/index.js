@@ -1,5 +1,6 @@
 import DB from '../index'
-
+import THREAD_MODEL from '../thread'
+import FORUM_MODEL from '../forum'
 const numTo12lenStr = (num) => {
   const s = num.toString()
   return '0'.repeat(12 - s.length) + s
@@ -50,8 +51,6 @@ const CREATE = async (posts, slug) => {
   const client = await DB.connect()
   try {
     await client.query('BEGIN')
-    if(!posts.length)
-      return []
     const thread = await client.query(`
     SELECT * FROM thread WHERE ${ isNaN(slug) ? 'slug' : 'id' }=$1`, [ slug ])
     
@@ -60,6 +59,10 @@ const CREATE = async (posts, slug) => {
     if ( !id ) {
       client.query('ROLLBACK')
       return null
+    }
+    if ( !posts.length ) {
+      await client.query('COMMIT')
+      return []
     }
     let l = 0
     const [ args, values ] = posts.reduce((acc, p) => {
@@ -81,83 +84,127 @@ const CREATE = async (posts, slug) => {
     await Promise.all(res.rows.map(async (post, i) => {
       let parentPath = ''
       const { parent, id } = post
-      
+      const user = await DB.query(`SELECT nickname FROM users WHERE nickname=$1`, [post.author])
+      if(!user.rows.length) {
+        throw new Error('Author not found')
+      }
       if ( parent ) {
         const parentPost = (await client.query(`
           SELECT * FROM post
           WHERE id=$1`, [ parent ])).rows[ 0 ]
-  
-        if ( !parentPost )
-          throw new Error('parent not found')
-  
+        if(!parentPost || parentPost.thread !== thread.rows[ 0 ].id) {
+          throw new Error('Parent post was created in another thread')
+        }
         parentPath = parentPost.path
       }
-        if ( !parentPath ) {
-          console.log(id)
-          await client.query(`
+      if ( !parentPath ) {
+        await client.query(`
             UPDATE post SET path ='${ numTo12lenStr(id) }' WHERE post.id=$1
-            `, [id])
-        } else {
-          await client.query(`
+            `, [ id ])
+      } else {
+        await client.query(`
             UPDATE post SET path = '${ parentPath + '.' + numTo12lenStr(id) }' WHERE post.id=$1
-           `, [id])
-        }
-        if ( !parent )
-          delete post.parent
+           `, [ id ])
+      }
+      if ( !parent )
+        delete post.parent
     }))
-    // console.log(res.rows)
-    // await Promise.all(posts.map(async ({parent, author, message, created}, i) => {
-    //   let parentPath = ''
-    //   if(parent) {
-    //     const parentPost = (await client.query(`
-    //     SELECT * FROM post
-    //     WHERE id=$1`, [parent])).rows[0]
-    //
-    //     if(!parentPost)
-    //       throw new Error('parent not found')
-    //
-    //     parentPath = parentPost.path
-    //
-    //   }
-    //   const [args, keys, values] = prepareInsert({
-    //     parent, author, message, forum, thread: id, created, path : parentPath
-    //   })
-    //
-    //   const newPost = await client.query(`
-    //     INSERT INTO post(${keys})
-    //     VALUES(${values})
-    //     RETURNING id, parent, author, message, forum, thread, created
-    //     `, args)
-    //     if(!parentPath) {
-    //       await client.query(`
-    //         UPDATE post SET path ='${numTo12lenStr(newPost.rows[0].id)}', "order"=$2 WHERE post.id=$1
-    //     `, [newPost.rows[0].id, i])
-    //     } else {
-    //       await client.query(`
-    //         UPDATE post SET path = '${parentPath + '.' + numTo12lenStr(newPost.rows[0].id)}', "order"=$2 WHERE post.id=$1
-    //     `, [newPost.rows[0].id, i])
-    //     }
-    //   if(!newPost.rows[0].parent)
-    //     delete newPost.rows[0].parent
-    //
-    //   res[i] = newPost.rows[0]
-    // }));
     client.query('COMMIT')
     return res.rows
     
   } catch ( e ) {
-    console.log(e)
+    client.query('ROLLBACK')
     throw e
   } finally {
     client.release()
   }
 }
 
-const UPDATE = async ({}, id) => {
-  console.log('user updated')
+const UPDATE = async ({ message }, id) => {
+  const client = await DB.connect()
+  try {
+    await client.query('BEGIN')
+  
+    const post = await DB.query(`
+    SELECT author, created, forum, id, message, thread
+    FROM post WHERE id=$1`, [ id ])
+  
+    if ( !post.rows.length ) {
+      await client.query('ROLLBACK')
+      throw new Error('Post not found')
+    }
+    if(!message && message !== '') {
+      post.rows[0].isEdited = false
+      return post.rows[0]
+    }
+    const postEdited = await DB.query(`
+  UPDATE post SET message = $1
+  WHERE id=$2
+  RETURNING author, created, forum, id, message, thread`, [ message, id ])
+  
+    if(post.rows[0].message !== postEdited.rows[0].message) {
+      postEdited.rows[0].isEdited = true
+      await DB.query(`UPDATE post SET "isEdited"=TRUE WHERE id=$1`, [id])
+    } else {
+      postEdited.rows[0].isEdited = false
+    }
+    return postEdited.rows[0]
+  }catch ( e ) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
 }
 
-const GET = async (id) => {
+const GET = async (id, query) => {
+  const client = await DB.connect()
+  try {
+    await client.query('BEGIN')
+    const result = {}
+    const post = await client.query(`
+  SELECT author, created, forum, id, message, thread, "isEdited"
+  FROM post WHERE id=$1`, [ id ])
+    
+    if ( !post.rows.length ) {
+      throw new Error('Post not found')
+    }
+    result.post = post.rows[ 0 ]
+    if(!result.post.isEdited)
+      delete result.post.isEdited
+    
+    if ( query.related?.includes('thread') ) {
+      const thread = await THREAD_MODEL.GET(result.post.thread)
+      if ( !thread )
+        throw new Error('Thread does not exist')
+      result.thread = thread
+    }
+    
+    if ( query.related?.includes('forum') ) {
+      const forum = await FORUM_MODEL.GET(result.post.forum)
+      if ( !forum )
+        throw new Error('Forum does not exist')
+      result.forum = forum
+    }
+    
+    if ( query.related?.includes('user') ) {
+      const user = await client.query(`
+      SELECT nickname, fullname, email, about
+      FROM users WHERE nickname=$1`, [ result.post.author ])
+      if ( !user.rows[ 0 ] )
+        throw new Error('User does not exist')
+      result.author = user.rows[ 0 ]
+    }
+    
+    await client.query('COMMIT')
+    
+    return result
+  } catch ( e ) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
 }
 
 const prepareInsert = (obj) => {

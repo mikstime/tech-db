@@ -1,11 +1,8 @@
-FROM node:11
-RUN mkdir /practice_docker
-ADD . /practice_docker
-WORKDIR /practice_docker
-RUN npm i
+FROM ubuntu:18.04
 
+MAINTAINER Balitsky M.M
 ENV PGVER 10
-RUN apt -y update && apt install -y postgresql-$PGVER
+RUN apt-get update && apt-get install -y postgresql-$PGVER
 
 USER postgres
 
@@ -30,8 +27,9 @@ VOLUME ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 
 USER root
 
-EXPOSE 8000
+EXPOSE 5000
 
-COPY --from=build /opt/app/main /usr/bin/
+FROM node:latest AS node_base
+RUN npm i
 
 CMD service postgresql start && npm start

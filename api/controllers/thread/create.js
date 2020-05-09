@@ -1,6 +1,5 @@
-import THREAD_MODEL from '../../models/thread'
-import USER_MODEL from '../../models/user'
 import POST_MODEL from '../../models/post'
+
 export default async (req, res) => {
   //@TODO validate list
   if(POST_MODEL.validList(req.body)) {
@@ -15,6 +14,8 @@ export default async (req, res) => {
         }
         res.status(201).send(posts)
       } catch (e) {
+        if(e.message === 'Parent post was created in another thread')
+          throw e
         res.status(404).send({
           "message": "Can't find user with id #42\n"
         })

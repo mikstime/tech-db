@@ -43,55 +43,45 @@ const CREATE = async ({ user, title, slug }) => {
 }
 
 const GET = async slug => {
-  const client = await DB.connect();
-  try {
-    await client.query('BEGIN')
-    const forum = await client.query(`
-        SELECT * FROM forum WHERE forum.slug_lower=LOWER($1)`, [slug])
+    const forum = await DB.query(`
+    SELECT   forum.id, "user", forum.title, forum.slug, COUNT(DISTINCT post.id) as posts, COUNT(DISTINCT thread.id) AS threads
+    FROM forum
+    LEFT JOIN thread ON LOWER(thread.forum)=LOWER($1)
+    LEFT JOIN post ON LOWER(post.forum)=LOWER($1)
+    WHERE forum.slug_lower=LOWER($1)
+    GROUP BY forum.id, "user", forum.title, forum.slug`, [slug])
+  
     if(!forum.rows.length) {
-      await client.query('ROLLBACK')
-      return null;
+      throw new Error('Forum not found')
     }
-    
-    const users= await client.query(`
-        SELECT COUNT(DISTINCT u.author) as users FROM forum,
-        (
-            SELECT author FROM thread WHERE forum=$1
-            UNION ALL
-            SELECT author FROM post WHERE forum=$1
-            UNION ALL
-            SELECT "user" AS author FROM forum WHERE slug=$1
-            ) AS u`, [ slug ])
-    const threads = await client.query(`
-    SELECT COUNT(id) as threads FROM thread WHERE forum=$1`, [slug])
-    await client.query('COMMIT')
-    
-    const res = {
-      ...forum.rows[0],
-      users: Number(users.rows[0].users),
-      threads: Number(threads.rows[0].threads),
-    }
-    
-    return res;
-  } catch ( e ) {
-    throw e
-  } finally {
-    client.release()
-  }
+    forum.rows[0].threads = Number(forum.rows[0].threads)
+    forum.rows[0].posts = Number(forum.rows[0].posts)
+    return forum.rows[0]
 }
 
-const GET_USERS = async slug => {
-  const users = await DB.query(`
+const GET_USERS = async (slug, query) => {
+  try {
+    const ORDER_TYPE = 'desc' in query ? query.desc === 'true' ? 'DESC' : 'ASC' : ''
+    const LIMIT = Number(query.limit) ? `LIMIT ${query.limit}` : 'LIMIT 100'
+    const SINCE = 'since' in query ? `WHERE U.nickname ${ORDER_TYPE === 'DESC' ? '<' : '>'} $2`: ''
+    const args = [slug]
+    if(query.since)
+      args.push(query.since)
+    const users = await DB.query(`
 WITH U AS (
-SELECT T.author as nickname FROM thread T WHERE T.forum=$1
+SELECT T.author as nickname FROM thread T WHERE LOWER(T.forum)=LOWER($1)
 UNION
-SELECT P.author as nickname FROM post P WHERE P.forum=$1
-UNION
-SELECT "user" AS nickname FROM forum WHERE forum.slug=$1
+SELECT P.author as nickname FROM post P WHERE LOWER(P.forum)=LOWER($1)
 )
 SELECT * FROM U
-LEFT JOIN users UU ON U.nickname=UU.nickname`, [ slug ])
-  return users.rows
+LEFT JOIN users UU ON U.nickname=UU.nickname
+${SINCE}
+ORDER BY U.nickname ${ORDER_TYPE} ${LIMIT}`, args)
+    return users.rows
+  } catch ( e ) {
+    console.log(e)
+    throw e
+  }
 }
 
 const GET_THREADS = async (slug, query) => {

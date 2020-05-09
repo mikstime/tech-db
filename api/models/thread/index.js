@@ -68,6 +68,12 @@ const CREATE = async ({ title, author, message, slug, created }, forum) => {
 const UPDATE = async ({ title, author, message }, slug) => {
   let set = ''
   let args = []
+  if(title === undefined && author === undefined && message === undefined) {
+    const thread = await DB.query(`
+    SELECT id, title, author, forum, message, slug, created FROM thread
+    WHERE ${ isNaN(slug) ? 'slug_lower' : 'id' }=${ isNaN(slug) ? `LOWER($1)` : `$1` }`, [slug])
+    return thread.rows[0];
+  }
   if ( title ) {
     args.push(title)
     set += `title=$${ args.length }`
@@ -89,15 +95,10 @@ const UPDATE = async ({ title, author, message }, slug) => {
   args.push(slug)
   try {
     const thread = await DB.query(`
-WITH T AS (
 UPDATE thread
 SET ${ set }
-WHERE ${ isNaN(slug) ? 'slug' : 'id' }=$${ args.length }
-RETURNING *)
-SELECT T.*, COUNT(post.author) as posts, count(vote.user) as votes FROM T
-LEFT JOIN post ON T.id = post.thread
-LEFT JOIN vote ON T.id = vote.thread_id
-GROUP BY T.id, T.title, T.author, T.forum, T.message, T.slug, T.created
+WHERE ${ isNaN(slug) ? 'slug_lower' : 'id' }=${ isNaN(slug) ? `LOWER($${args.length})` : `$${args.length}` }
+RETURNING id, title, author, forum, message, slug, created
   `, args)
     return thread.rows[ 0 ]
   } catch ( e ) {
@@ -175,7 +176,7 @@ const GET_POSTS = async (slug, query) => {
       return null
     }
     
-    const LIMIT = Number(query.limit) ? `LIMIT ${Number(query.limit)}` : ''
+    const LIMIT = Number(query.limit) ? `LIMIT ${Number(query.limit)}` : 'LIMIT 100'
     
     const ORDER_TYPE = query.desc === 'true' ? 'DESC' :
       query.desc === 'false' ? 'ASC' : ''
@@ -230,7 +231,7 @@ const GET_POSTS = async (slug, query) => {
         const path = (await client.query(`
       SELECT path FROM post WHERE id=$1`, [query.since])).rows[0].path
         // SINCE = `AND path >= '${path}'`
-        SINCE = `AND post.path ${ORDER_TYPE === 'DESC' ? '<' : '>'} '${path}'`
+        SINCE = `AND post.path ${ORDER_TYPE === 'DESC' ? '<' : '>'} '${path.split('.')[0]}'`
       }
       const posts = await client.query(`
       WITH RECURSIVE tree AS (
@@ -239,20 +240,20 @@ const GET_POSTS = async (slug, query) => {
         id, parent, author, message, forum, thread, created, path
         FROM post
         WHERE parent = 0 AND thread=$1 ${SINCE}
-        ${LIMIT}
+        ORDER BY id ${ORDER_TYPE} ${LIMIT}
         )
-        UNION ALL
-        SELECT
-        tree.sortable ||  post.path,
-        post.id, post.parent, post.author, post.message,
-        post.forum, post.thread, post.created, post.path
-  FROM post, tree
-  WHERE post.parent = tree.id
+       UNION ALL
+       SELECT
+       tree.sortable ||  post.path,
+       post.id, post.parent, post.author, post.message,
+       post.forum, post.thread, post.created, post.path
+       FROM post, tree
+       WHERE post.parent = tree.id
       )
       SELECT *, subpath(path, 0, 1) as st FROM tree
       ORDER BY st ${ORDER_TYPE}, path ASC
       `, [threadId])
-
+      
       await client.query('COMMIT')
       return posts.rows.map(r => {delete r.sortable; delete r.path;return r;})
     }
@@ -294,7 +295,6 @@ const CREATE_VOTE = async ({ nickname, voice }, slug) => {
     const thread = await GET_V(slug)
     return thread
   } catch ( e ) {
-    console.log(e)
     await client.query('ROLLBACK')
     throw e
   } finally {

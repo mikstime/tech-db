@@ -7,7 +7,7 @@ export default async (req, res) => {
       const thread = await THREAD_MODEL.CREATE_VOTE(req.body, req.params.slug)
       res.status(200).send(thread)
     } catch (e) {
-      res.status(500).send({
+      res.status(404).send({
         message: 'Не удалось проголосовать'
       })
     }
