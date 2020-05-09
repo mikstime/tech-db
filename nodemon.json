@@ -3,6 +3,7 @@
   "env"  : {
       "HTTP_PORT" : 8000,
       "PGUSER": "docker",
+      "TZ": "UTC",
       "PGHOST": "localhost",
       "PGPASSWORD": "docker",
       "PGDATABASE": "docker",

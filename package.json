@@ -3,11 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "nodemon --es-module-specifier-resolution=node --exec babel-node --experimental-modules app.js"
+    "start": "nodemon --exec babel-node app.js",
+    "server" : "babel-node app.js",
+    "production": "pm2 start -i max npm -- run server"
   },
   "dependencies": {
+    "babel-polyfill": "^6.26.0",
     "cookie-parser": "~1.4.4",
     "debug": "~2.6.9",
+    "dotenv": "^8.2.0",
     "express": "~4.16.1",
     "http-errors": "~1.6.3",
     "morgan": "~1.9.1",

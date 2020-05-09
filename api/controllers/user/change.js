@@ -1,5 +1,5 @@
 import USER_MODEL from '../../models/user'
-//@TODO 409 response code ???
+
 export default async (req, res) => {
   
   if(USER_MODEL.validAny(req.body)) {
@@ -14,7 +14,7 @@ export default async (req, res) => {
       res.status(200).send(user);
     } catch (e) {
       res.status(409).send({
-        message: "Can't find user with id #42\n"
+        message: 'email already exists'
       });
     }
     

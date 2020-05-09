@@ -14,7 +14,7 @@ export default async (req, res) => {
       res.status(201).send(thread)
     } catch ( e ) {
       try {
-        const thread = await THREAD_MODEL.GET(req.body.slug)
+        const thread = await THREAD_MODEL.GET_FAST(req.body.slug)
         res.status(409).send(thread)
       } catch ( e ) {
         res.status(500).send()

@@ -8,14 +8,25 @@ export default async (req, res) => {
       res.status(201).send(user);
       return;
     } catch (e) {
-      console.log(e)
       try {
-        const user = await USER_MODEL.GET(req.params.nickname);
-        res.status(409).send(user);
+        const user = await USER_MODEL.GET_EMAIL(req.body.email);
+        try {
+          const user2 = await USER_MODEL.GET(req.params.nickname);
+          if(user2.nickname === user[0].nickname)
+            res.status(409).send(user);
+          else
+            res.status(409).send([...user, user2]);
+        } catch ( e ) {
+          res.status(409).send(user);
+        }
       } catch (e) {
-        res.status(409).send({
-          message: 'email already exists'
-        });
+        console.log(e)
+        try {
+          const user = await USER_MODEL.GET(req.params.nickname);
+          res.status(409).send([user]);
+        } catch ( e ) {
+          res.sendStatus(500)
+        }
       }
       
     }

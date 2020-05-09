@@ -4,7 +4,13 @@ export default async (req, res) => {
   
   try {
     const forum = await FORUM_MODEL.GET(req.params.slug)
-    res.status(200).send(forum)
+    if(forum) {
+      res.status(200).send(forum)
+    } else {
+      res.status(404).send({
+        "message": "Forum not found"
+      })
+    }
     
   } catch (e) {
     res.status(404).send({

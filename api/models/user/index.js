@@ -22,15 +22,19 @@ const validAny = user => {
 }
 
 const CREATE = async ({ fullname, about, email }, nickname) => {
-  const user = await DB.query(`
-INSERT INTO users(nickname, fullname, email, about)
-VALUES ($1, $2, $3, $4)
+  try {
+    const user = await DB.query(`
+INSERT INTO users(nickname, fullname, email, email_lower, about)
+VALUES ($1, $2, $3, LOWER($4), $5)
 RETURNING nickname, fullname, email, about
-  `, [ nickname, fullname, email, about ])
+  `, [ nickname, fullname, email, email, about ])
   
-  if ( !user.rows[ 0 ] )
-    throw new Error()
-  return user.rows[ 0 ]
+    if ( !user.rows[ 0 ] )
+      throw new Error()
+    return user.rows[ 0 ]
+  } catch ( e ) {
+    throw e;
+  }
 }
 
 const UPDATE = async ({ fullname, about, email }, nickname) => {
@@ -51,17 +55,24 @@ const UPDATE = async ({ fullname, about, email }, nickname) => {
   }
   if ( email ) {
     args.push(email)
-    set += `email=$${ args.length }`
+    args.push(email)
+    set += `email=$${ args.length - 1}, email_lower=LOWER($${args.length})`
   }
   args.push(nickname)
-  
-  const user = await DB.query(`
+  if(args.length !== 1) {
+    const user = await DB.query(`
 UPDATE users
 SET ${ set }
 WHERE nickname=$${ args.length }
 RETURNING nickname, fullname, email, about`, args)
-  console.log(user)
-  return user.rows[ 0 ]
+  
+    return user.rows[ 0 ]
+  } else {
+    const user = await DB.query(`
+SELECT nickname, fullname, email, about FROM users WHERE nickname=$1`, args)
+  
+    return user.rows[ 0 ]
+  }
 }
 
 const GET = async (nickname) => {
@@ -72,7 +83,18 @@ SELECT nickname, fullname, email, about FROM users WHERE nickname=$1;`, [ nickna
     throw new Error('user not found')
   return user.rows[ 0 ]
 }
+
+const GET_EMAIL = async (email) => {
+  const user = await DB.query(`
+SELECT nickname, fullname, email, about FROM users WHERE email_lower=LOWER($1)`, [ email ])
+  
+  if ( !user.rows.length )
+    throw new Error('user was not found')
+  return user.rows
+}
+
 export const USER_MODEL = {
+  GET_EMAIL,
   CREATE,
   UPDATE,
   GET,

@@ -26,14 +26,13 @@ const CREATE = async ({ user, title, slug }) => {
   try {
     await client.query('BEGIN')
     const x = await client.query(`
-    INSERT INTO forum("user", title, slug)
-    SELECT users.nickname AS "user", $2 AS title, $3 AS slug FROM users
+    INSERT INTO forum("user", title, slug, slug_lower)
+    SELECT users.nickname AS "user", $2 AS title, $3 AS slug, LOWER($4) AS slug_lower FROM users
     WHERE users.nickname=$1
-    RETURNING "user", title, slug, 0 as threads, 1 as users`, [user, title, slug])
-    if(!x.rows.length)
-      throw new Error(`User not found`)
-    
+    RETURNING "user", title, slug, 0 as threads, 1 as users`, [user, title, slug, slug])
     await client.query('COMMIT')
+    if(!x.rows.length)
+      return null;
     return x.rows[0]
   } catch (e) {
     await client.query('ROLLBACK')
@@ -48,9 +47,11 @@ const GET = async slug => {
   try {
     await client.query('BEGIN')
     const forum = await client.query(`
-        SELECT * FROM forum WHERE forum.slug=$1`, [slug])
-    if(!forum)
-      throw new Error('no forum found')
+        SELECT * FROM forum WHERE forum.slug_lower=LOWER($1)`, [slug])
+    if(!forum.rows.length) {
+      await client.query('ROLLBACK')
+      return null;
+    }
     
     const users= await client.query(`
         SELECT COUNT(DISTINCT u.author) as users FROM forum,
@@ -93,18 +94,35 @@ LEFT JOIN users UU ON U.nickname=UU.nickname`, [ slug ])
   return users.rows
 }
 
-const GET_THREADS = async slug => {
+const GET_THREADS = async (slug, query) => {
   try {
+    const args = [slug];
+    let options = ''
+    options += `ORDER BY created ${query.desc === 'true' ? 'DESC' : ''} `;
+    if(query.limit) {
+      args.push(query.limit);
+      options += `LIMIT $${args.length} `
+    }
+    let argSince;
+    if(query.since) {
+      args.push(query.since);
+      argSince = args.length
+    }
+    console.log(options)
     const threads = await DB.query(`
-        SELECT T.*, COUNT(vote.thread_id) as votes
+        SELECT T.*
         FROM thread T
-                 LEFT JOIN vote ON vote.thread_id = T.id
-        WHERE forum = $1
-        GROUP BY t.id`, [ slug ])
+        WHERE forum = $1 ${argSince ? `AND created ${query.desc === 'true' ? '<=' : '>='} $${argSince}` : ''}
+        GROUP BY t.id
+        ${options}`, args)
     
-    threads.rows.forEach(t => t.slug ? t : (delete t.slug))
+    threads.rows.forEach(t => {
+      t.slug ? t : (delete t.slug)
+      t.created ? t : (delete t.created)
+    })
     return threads.rows
   } catch ( e ) {
+    console.log(e)
     throw e
   }
 }

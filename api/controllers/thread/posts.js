@@ -2,7 +2,7 @@ import THREAD_MODEL from '../../models/thread'
 
 export default async (req, res) => {
   try {
-    const posts = await THREAD_MODEL.GET_POSTS(req.params.slug)
+    const posts = await THREAD_MODEL.GET_POSTS(req.params.slug, req.query)
     
     res.status(200).send(posts)
   } catch ( e ) {
