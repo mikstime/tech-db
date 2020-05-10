@@ -1,4 +1,10 @@
 import DB from '../index'
+import {
+  CREATE_QUERY,
+  GET_EXISTING_QUERY,
+  GET_QUERY,
+  UPDATE_QUERY
+} from './queries'
 
 const valid = user => {
   try {
@@ -23,81 +29,57 @@ const validAny = user => {
 
 const CREATE = async ({ fullname, about, email }, nickname) => {
   try {
-    const user = await DB.query(`
-INSERT INTO users(nickname, fullname, email, email_lower, about)
-VALUES ($1, $2, $3, LOWER($4), $5)
-RETURNING nickname, fullname, email, about
-  `, [ nickname, fullname, email, email, about ])
-  
-    if ( !user.rows[ 0 ] )
-      throw new Error()
+    const user = await DB.query(CREATE_QUERY, [ nickname, fullname, email, about ])
+    
     return user.rows[ 0 ]
   } catch ( e ) {
-    throw e;
+    throw e
   }
 }
+const prepareFields = (fields) =>
+  Object.entries(fields).reduce((acc, field) => {
+    if ( field[ 1 ] !== undefined ) {
+      acc[ 0 ].push(field[ 1 ])
+      if ( acc[1] !== '' )
+        acc[ 1 ] += ','
+      acc[ 1 ] += `${ field[ 0 ] }=$${ acc[ 0 ].length }`
+    }
+    return acc
+  }, [ [], '' ])
 
 const UPDATE = async ({ fullname, about, email }, nickname) => {
-  let set = ''
-  let args = []
-  if ( fullname ) {
-    args.push(fullname)
-    set += `fullname=$${ args.length }`
-    if ( about || email )
-      set += ','
-  }
-  
-  if ( about ) {
-    args.push(about)
-    set += `about=$${ args.length }`
-    if ( email )
-      set += ','
-  }
-  if ( email ) {
-    args.push(email)
-    args.push(email)
-    set += `email=$${ args.length - 1}, email_lower=LOWER($${args.length})`
-  }
+  const [args, fields] = prepareFields({fullname, about, email})
   args.push(nickname)
-  if(args.length !== 1) {
-    const user = await DB.query(`
-UPDATE users
-SET ${ set }
-WHERE nickname=$${ args.length }
-RETURNING nickname, fullname, email, about`, args)
   
-    return user.rows[ 0 ]
+  let user;
+  
+  if ( args.length !== 1 ) {
+    user = (await DB.query(UPDATE_QUERY(fields, args.length), args)).rows[0]
   } else {
-    const user = await DB.query(`
-SELECT nickname, fullname, email, about FROM users WHERE nickname=$1`, args)
-  
-    return user.rows[ 0 ]
+    user = (await DB.query(GET_QUERY, [ nickname ])).rows[ 0 ]
   }
+  return user
 }
 
 const GET = async (nickname) => {
-  const user = await DB.query(`
-SELECT nickname, fullname, email, about FROM users WHERE nickname=$1;`, [ nickname ])
-  
-  if ( !user.rows[ 0 ] )
-    throw new Error('user not found')
+  const user = await DB.query(GET_QUERY, [ nickname ])
   return user.rows[ 0 ]
 }
 
-const GET_EMAIL = async (email) => {
-  const user = await DB.query(`
-SELECT nickname, fullname, email, about FROM users WHERE email_lower=LOWER($1)`, [ email ])
+const GET_EXISTING = async ({ email }, nickname) => {
+  const user = await DB.query(GET_EXISTING_QUERY, [ nickname, email ])
   
   if ( !user.rows.length )
-    throw new Error('user was not found')
+    throw new Error('Unable to get user by id or email')
+  
   return user.rows
 }
 
 export const USER_MODEL = {
-  GET_EMAIL,
   CREATE,
   UPDATE,
   GET,
+  GET_EXISTING,
   valid,
   validAny,
 }

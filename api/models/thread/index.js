@@ -1,8 +1,13 @@
 import DB from '../index'
 import pg from 'pg'
+import {
+  CREATE_QUERY,
+  GET_EXISTING_QUERY,
+  UPDATE_THREAD_COUNTER_QUERY
+} from './queries'
 
 const { Pool } = pg
-
+//@TODO денормалищировать число постов в ветке. Голоса выбираются быстро
 const valid = thread => {
   try {
     const { title, author, message, created } = thread
@@ -38,27 +43,22 @@ const CREATE = async ({ title, author, message, slug, created }, forum) => {
   const client = await DB.connect()
   try {
     await client.query('BEGIN')
-    const x = await client.query(`
-    INSERT INTO thread(title, author, forum, message, slug, slug_lower, created)
-    SELECT $2 AS title, users.nickname AS author,
-        forum.slug as forum, $3 AS message, $4 AS slug, LOWER($5) AS slug_lower, $7 AS created FROM users
-    JOIN forum ON forum.slug_lower=LOWER($6)
-    WHERE users.nickname=$1
-    RETURNING id, title, author, forum, message,
-        slug, created`,
-      [ author, title, message, slug, slug, forum, created ])
-    if ( !x.rows.length ) {
+    const thread = await client.query(CREATE_QUERY,
+      [ author, title, message, slug, forum, created ])
+    
+    if(!thread.rows.length) {
       await client.query('ROLLBACK')
       return null
     }
+    if(!thread.rows[0].slug)
+      delete thread.rows[0].slug
     
+    const updated = await client.query(UPDATE_THREAD_COUNTER_QUERY, [forum])
     await client.query('COMMIT')
-    if ( x.rows[ 0 ] && !x.rows[ 0 ].slug )
-      delete x.rows[ 0 ].slug
-    return x.rows[ 0 ]
+    return thread.rows[ 0 ]
   } catch ( e ) {
-    console.log(e)
     await client.query('ROLLBACK')
+    console.log(e)
     throw e
   } finally {
     client.release()
@@ -68,11 +68,11 @@ const CREATE = async ({ title, author, message, slug, created }, forum) => {
 const UPDATE = async ({ title, author, message }, slug) => {
   let set = ''
   let args = []
-  if(title === undefined && author === undefined && message === undefined) {
+  if ( title === undefined && author === undefined && message === undefined ) {
     const thread = await DB.query(`
     SELECT id, title, author, forum, message, slug, created FROM thread
-    WHERE ${ isNaN(slug) ? 'slug_lower' : 'id' }=${ isNaN(slug) ? `LOWER($1)` : `$1` }`, [slug])
-    return thread.rows[0];
+    WHERE ${ isNaN(slug) ? 'slug_lower' : 'id' }=${ isNaN(slug) ? `LOWER($1)` : `$1` }`, [ slug ])
+    return thread.rows[ 0 ]
   }
   if ( title ) {
     args.push(title)
@@ -97,7 +97,7 @@ const UPDATE = async ({ title, author, message }, slug) => {
     const thread = await DB.query(`
 UPDATE thread
 SET ${ set }
-WHERE ${ isNaN(slug) ? 'slug_lower' : 'id' }=${ isNaN(slug) ? `LOWER($${args.length})` : `$${args.length}` }
+WHERE ${ isNaN(slug) ? 'slug_lower' : 'id' }=${ isNaN(slug) ? `LOWER($${ args.length })` : `$${ args.length }` }
 RETURNING id, title, author, forum, message, slug, created
   `, args)
     return thread.rows[ 0 ]
@@ -147,17 +147,15 @@ GROUP BY thread.id
   
 }
 
-const GET_FAST = async (slug) => {
+const GET_EXISTING = async (slug) => {
+  const thread = await DB.query(GET_EXISTING_QUERY(slug), [ slug ])
   
-  const thread = await DB.query(`
-SELECT  id, title, author, forum, message, slug, created
-FROM thread
-WHERE thread.${ isNaN(slug) ? 'slug' : 'id' }=$1
-  `, [ slug ])
   if ( !thread.rows[ 0 ] )
-    throw new Error('thread not found')
+    return null
+  
   if ( !thread.rows[ 0 ].slug )
     delete thread.rows[ 0 ].slug
+  
   return thread.rows[ 0 ]
 }
 
@@ -169,26 +167,26 @@ const GET_POSTS = async (slug, query) => {
     const threadId = (await client.query(`
         SELECT id FROM thread
         WHERE ${ isNaN(slug) ? 'slug_lower' : 'id' }=${
-        isNaN(slug) ? 'LOWER($1)' : '$1' }`, [ slug ])).rows[0].id
+      isNaN(slug) ? 'LOWER($1)' : '$1' }`, [ slug ])).rows[ 0 ].id
     
     if ( !threadId ) {
       await client.query('ROLLBACK')
       return null
     }
     
-    const LIMIT = Number(query.limit) ? `LIMIT ${Number(query.limit)}` : 'LIMIT 100'
+    const LIMIT = Number(query.limit) ? `LIMIT ${ Number(query.limit) }` : 'LIMIT 100'
     
     const ORDER_TYPE = query.desc === 'true' ? 'DESC' :
       query.desc === 'false' ? 'ASC' : ''
     
-    const SINCE = Number(query.since) ? `AND post.id > ${query.since}` : ''
+    const SINCE = Number(query.since) ? `AND post.id > ${ query.since }` : ''
     if ( query.sort === 'flat' ) {
-      const SINCE = Number(query.since) ? `AND post.id ${ORDER_TYPE === 'DESC' ? '<' : '>'} ${query.since}` : ''
+      const SINCE = Number(query.since) ? `AND post.id ${ ORDER_TYPE === 'DESC' ? '<' : '>' } ${ query.since }` : ''
       //  parent, author, message, forum, thread, created,
       const posts = await client.query(`
         SELECT id, parent, author, message, forum, thread, created
-        FROM post WHERE thread=$1 ${SINCE}
-        ORDER BY created ${ORDER_TYPE}, id ${ORDER_TYPE} ${LIMIT}
+        FROM post WHERE thread=$1 ${ SINCE }
+        ORDER BY created ${ ORDER_TYPE }, id ${ ORDER_TYPE } ${ LIMIT }
       `, [ threadId ])
       
       await client.query('COMMIT')
@@ -197,10 +195,10 @@ const GET_POSTS = async (slug, query) => {
     
     if ( query.sort === 'tree' ) {
       let SINCE = ''
-      if(query.since) {
+      if ( query.since ) {
         const path = (await client.query(`
-      SELECT path FROM post WHERE id=$1`, [query.since])).rows[0].path
-        SINCE = `WHERE path ${ORDER_TYPE === 'DESC' ? '<' : '>'} '${path}'`
+      SELECT path FROM post WHERE id=$1`, [ query.since ])).rows[ 0 ].path
+        SINCE = `WHERE path ${ ORDER_TYPE === 'DESC' ? '<' : '>' } '${ path }'`
       }
       const posts = await client.query(`
       WITH RECURSIVE tree AS (
@@ -217,21 +215,25 @@ const GET_POSTS = async (slug, query) => {
   FROM post, tree
   WHERE post.parent = tree.id
       )
-      SELECT * FROM tree ${SINCE}
-    ORDER BY sortable ${ORDER_TYPE} ${LIMIT}
-      `, [threadId])
-
+      SELECT * FROM tree ${ SINCE }
+    ORDER BY sortable ${ ORDER_TYPE } ${ LIMIT }
+      `, [ threadId ])
+      
       await client.query('COMMIT')
-      return posts.rows.map(r => {delete r.sortable; delete r.path;return r;})
+      return posts.rows.map(r => {
+        delete r.sortable
+        delete r.path
+        return r
+      })
     }
-
-    if (query.sort === 'parent_tree') {
+    
+    if ( query.sort === 'parent_tree' ) {
       let SINCE = ''
-      if(query.since) {
+      if ( query.since ) {
         const path = (await client.query(`
-      SELECT path FROM post WHERE id=$1`, [query.since])).rows[0].path
+      SELECT path FROM post WHERE id=$1`, [ query.since ])).rows[ 0 ].path
         // SINCE = `AND path >= '${path}'`
-        SINCE = `AND post.path ${ORDER_TYPE === 'DESC' ? '<' : '>'} '${path.split('.')[0]}'`
+        SINCE = `AND post.path ${ ORDER_TYPE === 'DESC' ? '<' : '>' } '${ path.split('.')[ 0 ] }'`
       }
       const posts = await client.query(`
       WITH RECURSIVE tree AS (
@@ -239,8 +241,8 @@ const GET_POSTS = async (slug, query) => {
         ARRAY[]::LTREE[] || post.path AS sortable,
         id, parent, author, message, forum, thread, created, path
         FROM post
-        WHERE parent = 0 AND thread=$1 ${SINCE}
-        ORDER BY id ${ORDER_TYPE} ${LIMIT}
+        WHERE parent = 0 AND thread=$1 ${ SINCE }
+        ORDER BY id ${ ORDER_TYPE } ${ LIMIT }
         )
        UNION ALL
        SELECT
@@ -251,26 +253,29 @@ const GET_POSTS = async (slug, query) => {
        WHERE post.parent = tree.id
       )
       SELECT *, subpath(path, 0, 1) as st FROM tree
-      ORDER BY st ${ORDER_TYPE}, path ASC
-      `, [threadId])
+      ORDER BY st ${ ORDER_TYPE }, path ASC
+      `, [ threadId ])
       
       await client.query('COMMIT')
-      return posts.rows.map(r => {delete r.sortable; delete r.path;return r;})
+      return posts.rows.map(r => {
+        delete r.sortable
+        delete r.path
+        return r
+      })
     }
-  
+    
     // const SINCE2 = Number(query.since) ? `AND post.id > ${query.since}` : ''
-    const SINCE2 = Number(query.since) ? `AND post.id ${ORDER_TYPE === 'DESC' ? '<' : '>'} ${query.since}` : ''
+    const SINCE2 = Number(query.since) ? `AND post.id ${ ORDER_TYPE === 'DESC' ? '<' : '>' } ${ query.since }` : ''
     const posts = await client.query(`
         SELECT id, parent, author, message, forum, thread, created
-        FROM post WHERE thread=$1 ${SINCE2}
-        ORDER BY id ${ORDER_TYPE} ${LIMIT}`, [ threadId ])
+        FROM post WHERE thread=$1 ${ SINCE2 }
+        ORDER BY id ${ ORDER_TYPE } ${ LIMIT }`, [ threadId ])
     
     await client.query('COMMIT')
     return posts.rows
     
   } catch ( e ) {
     await client.query('ROLLBACK')
-    console.log(e)
     throw e
   } finally {
     client.release()
@@ -304,7 +309,7 @@ const CREATE_VOTE = async ({ nickname, voice }, slug) => {
 }
 
 export const THREAD_MODEL = {
-  GET_FAST,
+  GET_EXISTING,
   CREATE,
   CREATE_VOTE,
   UPDATE,

@@ -1,44 +1,39 @@
 import USER_MODEL from '../../models/user'
 
 export default async (req, res) => {
-  
+  /*
+  CREATE USER
+  OPTIONS:
+  CREATED -> 201 RETURN USER
+  EMAIL EXISTST -> 409 RETURN EXISTING USER
+  NICKNAME EXISTS -> 409 RETURN EXISTSING USER
+  OTHER -> 400
+   */
   if(USER_MODEL.valid(req.body)) {
     try {
-      const user = await USER_MODEL.CREATE(req.body, req.params.nickname);
-      res.status(201).send(user);
+      //error if email or nickname exists (or incorrect input)
+      const user = await USER_MODEL.CREATE(req.body, req.params.nickname)
+      res.status(201).send(user)
       return;
     } catch (e) {
       try {
-        const user = await USER_MODEL.GET_EMAIL(req.body.email);
-        try {
-          const user2 = await USER_MODEL.GET(req.params.nickname);
-          if(user2.nickname === user[0].nickname)
-            res.status(409).send(user);
-          else
-            res.status(409).send([...user, user2]);
-        } catch ( e ) {
-          res.status(409).send(user);
-        }
-      } catch (e) {
-        console.log(e)
-        try {
-          const user = await USER_MODEL.GET(req.params.nickname);
-          res.status(409).send([user]);
-        } catch ( e ) {
-          res.sendStatus(500)
-        }
+        const existingUser =
+          await USER_MODEL.GET_EXISTING(req.body, req.params.nickname)
+        res.status(409).send(existingUser)
+      } catch ( e ) {
+        res.status(400).send({
+          message: 'Incorrect input provided'
+        })
       }
-      
     }
     
   } else {
     res.status(400).send({
-      message: `
-    Пользователь имеет поля
-    fullname: string
-    about: string
-    email: string
-    `
+      message:
+        'Пользователь имеет поля ' +
+        'fullname: string ' +
+        'about: string ' +
+        'email: string'
     })
   }
 }

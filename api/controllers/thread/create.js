@@ -1,7 +1,6 @@
 import POST_MODEL from '../../models/post'
 
 export default async (req, res) => {
-  //@TODO validate list
   if(POST_MODEL.validList(req.body)) {
     try {
       try {
@@ -21,6 +20,7 @@ export default async (req, res) => {
         })
       }
     } catch (e) {
+      console.log('error at final', e)
       res.status(409).send({
         "message": "Can't find user with id #42\n"
       })

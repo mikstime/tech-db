@@ -93,6 +93,8 @@ const CREATE = async (posts, slug) => {
           SELECT * FROM post
           WHERE id=$1`, [ parent ])).rows[ 0 ]
         if(!parentPost || parentPost.thread !== thread.rows[ 0 ].id) {
+          console.log('----------------posts, parentPost, thread, post-----------')
+          console.log(parentPost, thread.rows[0], post)
           throw new Error('Parent post was created in another thread')
         }
         parentPath = parentPost.path
