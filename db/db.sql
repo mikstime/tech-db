@@ -11,18 +11,20 @@ CREATE TABLE users
 --AVOID DUPLICATES, QUICK SEARCH AND JOIN(email not needed for search and join)
 CREATE UNIQUE INDEX user_email_lower_idx ON users USING btree(LOWER(email));
 CREATE UNIQUE INDEX user_nickname_lower_idx ON users USING btree(LOWER(nickname));
-
+--Quick alphabet sort
+CREATE INDEX user_nickname ON users (nickname);
 CREATE TABLE forum
 (
     slug VARCHAR(50) NOT NULL PRIMARY KEY,
     "user" CITEXT COLLATE "C" NOT NULL,
     title CITEXT COLLATE "C" NOT NULL,
     threads INT DEFAULT 0, --DENORMALIZATION
+    threads_updated BOOLEAN DEFAULT FALSE,
     posts INT DEFAULT 0--DENORMALIZATION
 );
 --AVOID DUPLICATES, QUICK SEARCH AND JOIN
 CREATE UNIQUE INDEX forum_slug_lower_idx ON forum USING btree(LOWER(slug));
---@TODO LOWER(post.forum) index
+CREATE INDEX forum_slug_lower_hash_idx ON forum USING btree(LOWER(slug));
 CREATE TABLE thread
 (
     id SERIAL PRIMARY KEY,
@@ -32,16 +34,24 @@ CREATE TABLE thread
     message TEXT,
     slug CITEXT COLLATE "C",
     created timestamptz,
-    posts INT
+    posts INT DEFAULT 0,
+    posts_updated BOOLEAN DEFAULT FALSE,
+    votes INT DEFAULT 0,
+    votes_updated BOOLEAN DEFAULT FALSE
 );
 --AVOID DUPLICATES, QUICK SEARCH AND JOIN
 CREATE UNIQUE INDEX thread_slug_lower_idx ON thread USING btree(LOWER(slug));
+--
 CREATE INDEX thread_id_idx ON thread USING btree(id);
 CREATE INDEX thread_created_idx ON thread USING btree(created);
+--
+CREATE INDEX thread_forum_idx ON thread USING btree(LOWER(forum));
+CREATE INDEX thread_author_idx ON thread USING btree(LOWER(author));
+CREATE INDEX thread_author_forum_idx ON thread (LOWER(forum), LOWER(author));
 
 CREATE TABLE post
 (
-    id SERIAL,
+    id SERIAL PRIMARY KEY,
     parent int default 0 NOT NULL,
     author CITEXT COLLATE "C" NOT NULL,
     path ltree,
@@ -50,40 +60,35 @@ CREATE TABLE post
     forum CITEXT COLLATE "C" NOT NULL,
     "thread" int,
     created timestamp NOT NULL DEFAULT NOW()
-) PARTITION BY RANGE (thread);
+);
 
-CREATE TABLE thread_1 PARTITION OF test FOR VALUES FROM (0) TO (1000);
-CREATE TABLE thread_2 PARTITION OF test FOR VALUES FROM (10001) TO (20000);
-CREATE TABLE thread_3 PARTITION OF test FOR VALUES FROM (20001) TO (30000);
-CREATE TABLE thread_4 PARTITION OF test FOR VALUES FROM (30001) TO (40000);
-CREATE TABLE thread_5 PARTITION OF test FOR VALUES FROM (40001) TO (50000);
-CREATE TABLE thread_6 PARTITION OF test FOR VALUES FROM (50001) TO (60000);
-CREATE TABLE thread_7 PARTITION OF test FOR VALUES FROM (60001) TO (70000);
-CREATE TABLE thread_8 PARTITION OF test FOR VALUES FROM (70001) TO (80000);
-CREATE TABLE thread_9 PARTITION OF test FOR VALUES FROM (80001) TO (90000);
-CREATE TABLE thread_10 PARTITION OF test FOR VALUES FROM (90001) TO (110000);
+CREATE INDEX post_id_idx ON post USING btree(id);
+--
+CREATE INDEX post_path_idx ON post USING gist(path);
+CREATE INDEX post_path_st_idx ON post USING gist(subpath(path,0, 1)); --@TODO default path to avoid error (from 7s to 100ms)
+CREATE INDEX post_path_st_path_idx ON post (subpath(path,0, 1), path);
+--
+CREATE INDEX post_since_tree_idx ON post (thread, path);
+CREATE INDEX post_since_idx ON post (parent, thread, path);
+--
+CREATE INDEX post_parent_idx ON post USING btree(parent);
+CREATE INDEX post_thread_idx ON post USING btree(thread);
+CREATE INDEX post_parent_thread_idx ON post USING btree(parent, thread);
+--
+CREATE INDEX post_created_idx ON post USING btree(created);
+--
+CREATE INDEX post_author_idx ON post USING btree(LOWER(author));
+CREATE INDEX post_forum_lower_idx ON post USING btree(LOWER(forum));
+CREATE INDEX post_author_forum ON post(LOWER(author), LOWER(forum)); --search users
 
 CREATE TABLE vote
 (
     thread_id int,
     "user" CITEXT COLLATE "C" NOT NULL,
     voice int,
-    UNIQUE("user", thread_id)
+    created timestamptz DEFAULT NOW()
 );
-
-CREATE INDEX post_path_idx ON post USING gist (path);
-
-CREATE INDEX thread_forum ON thread (LOWER(forum));
-CREATE INDEX post_forum ON post (LOWER(forum));
-
-CREATE INDEX post_parent ON post (parent);
-CREATE INDEX post_thread ON post (thread);
-CREATE INDEX post_parent_thread ON post (parent, thread);
-
-
-CREATE INDEX post_id ON post(id);
-
-
-CREATE INDEX post_created ON post(created);
-
-CREATE INDEX vote_thread_id ON vote(thread_id);
+CREATE INDEX vote_created_idx ON vote USING btree(created);
+CREATE INDEX vote_user_idx ON vote USING btree(LOWER("user"));
+CREATE INDEX vote_created_user_idx ON vote USING btree(LOWER("user"), created);
+CREATE INDEX vote_thread_id_idx ON vote USING btree(thread_id);

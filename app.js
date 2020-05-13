@@ -16,11 +16,11 @@ app.use(logger('dev'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 
-app.use('/user/', USER_ROUTES)
-app.use('/forum/', FORUM_ROUTES)
-app.use('/post/', POST_ROUTES)
-app.use('/service/', SERVICE_ROUTES)
-app.use('/thread/', THREAD_ROUTES)
+app.use('/api/user/', USER_ROUTES)
+app.use('/api/forum/', FORUM_ROUTES)
+app.use('/api/post/', POST_ROUTES)
+app.use('/api/service/', SERVICE_ROUTES)
+app.use('/api/thread/', THREAD_ROUTES)
 
 app.use((req, res) => {
   res.write('Success')

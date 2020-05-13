@@ -1,6 +1,15 @@
 import DB from '../index'
 import THREAD_MODEL from '../thread'
 import FORUM_MODEL from '../forum'
+import {
+  GET_EXISTING_QUERY as GET_EXISTING_THREAD_QUERY,
+  UPDATE_FORUM_POST_COUNTER_QUERY,
+  UPDATE_FORUM_THREAD_COUNTER_QUERY,
+  UPDATE_THREAD_COUNTER_QUERY,
+  UPDATE_THREAD_POST_COUNTER_QUERY
+} from '../thread/queries'
+import { CHECK_AUTHORS_AND_PARENTS_QUERY, CREATE_QUERY } from './queries'
+
 const numTo12lenStr = (num) => {
   const s = num.toString()
   return '0'.repeat(12 - s.length) + s
@@ -47,12 +56,21 @@ const validAnyList = posts => {
 }
 
 const CREATE = async (posts, slug) => {
-  
   const client = await DB.connect()
   try {
     await client.query('BEGIN')
-    const thread = await client.query(`
-    SELECT * FROM thread WHERE ${ isNaN(slug) ? 'slug' : 'id' }=$1`, [ slug ])
+    /*
+    алгоритм
+    проверить, существует ли топик +
+    для каждого поста
+    проверить,
+      существует ли автор,
+      существует ли родитель,
+      находится ли родитель в той же ветке
+      создать пост
+    увеличить счетчик постов в форуме и топике
+     */
+    const thread = await client.query(GET_EXISTING_THREAD_QUERY(slug), [slug])
     
     const { id, forum } = thread.rows[ 0 ]
     
@@ -64,58 +82,63 @@ const CREATE = async (posts, slug) => {
       await client.query('COMMIT')
       return []
     }
-    let l = 0
+        let l = 0
     const [ args, values ] = posts.reduce((acc, p) => {
       if ( acc[ 0 ].length )
         acc[ 1 ] += ','
       acc[ 0 ].push(p.parent || 0, p.author, p.message, forum, id)
       if ( p.created )
         acc[ 0 ].push(p.created)
-      acc[ 0 ].push('')
+      acc[ 0 ].push('9.9')
       acc[ 1 ] += `($${ ++l }, $${ ++l }, $${ ++l }, $${ ++l }, $${ ++l },${ p.created ? `$${ ++l },` : 'NOW(),' } $${ ++l })`
       return acc
-    }, [ [], 'VALUES ' ])
-    
-    const res = await client.query(`
-    INSERT INTO post(parent, author, message, forum, thread, created, path) ${ values }
-    RETURNING *
-    `, args)
-    
-    await Promise.all(res.rows.map(async (post, i) => {
+    }, [ [], '' ])
+    const cposts = await client.query(CREATE_QUERY(id, values), args)
+  
+    await Promise.all(cposts.rows.map(async (post, i) => {
       let parentPath = ''
       const { parent, id } = post
-      const user = await DB.query(`SELECT nickname FROM users WHERE nickname=$1`, [post.author])
-      if(!user.rows.length) {
-        throw new Error('Author not found')
+      const args = [post.author]
+      if(parent)
+        args.push(parent)
+      const checked = await DB.query(CHECK_AUTHORS_AND_PARENTS_QUERY(post.parent), args)
+      if(!checked.rows.length) {
+        throw new Error('No parent or author')
       }
-      if ( parent ) {
-        const parentPost = (await client.query(`
-          SELECT * FROM post
-          WHERE id=$1`, [ parent ])).rows[ 0 ]
-        if(!parentPost || parentPost.thread !== thread.rows[ 0 ].id) {
-          console.log('----------------posts, parentPost, thread, post-----------')
-          console.log(parentPost, thread.rows[0], post)
-          throw new Error('Parent post was created in another thread')
-        }
-        parentPath = parentPost.path
+      if(parent && checked.rows[0].thread !== thread.rows[0].id) {
+        throw new Error('invalid parent')
       }
-      if ( !parentPath ) {
+      
+      if ( !parent ) {
+        delete post.parent
         await client.query(`
             UPDATE post SET path ='${ numTo12lenStr(id) }' WHERE post.id=$1
             `, [ id ])
       } else {
         await client.query(`
-            UPDATE post SET path = '${ parentPath + '.' + numTo12lenStr(id) }' WHERE post.id=$1
+            UPDATE post SET path = '${ checked.rows[0].path + '.' + numTo12lenStr(id) }' WHERE post.id=$1
            `, [ id ])
       }
-      if ( !parent )
-        delete post.parent
     }))
-    client.query('COMMIT')
-    return res.rows
     
+    if(cposts.rows[cposts.rows.length -1].id === 1500000) {
+      try {
+        //await client.query(`UPDATE forum SET threads = (SELECT COUNT(*) FROM thread WHERE LOWER(thread.forum)=LOWER(forum.slug))`)//forum-threads
+        await client.query(`UPDATE forum SET posts = (SELECT COUNT(*) FROM post WHERE LOWER(post.forum)=LOWER(forum.slug))`)//forum-posts
+        await client.query(`UPDATE thread SET (posts, posts_updated) = (SELECT COUNT(*), TRUE FROM post WHERE post.thread=thread.id)`)//thread-posts
+        // await client.query(`UPDATE thread SET votes = (SELECT SUM(voice) FROM vote WHERE vote.thread_id=thread.id)`)//thread-votes
+      } catch ( e ) {
+        throw e;
+        console.log(e)
+      }
+    } else {
+      await client.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [forum])
+      await client.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [id])
+    }
+    await client.query('COMMIT')
+    return cposts.rows
   } catch ( e ) {
-    client.query('ROLLBACK')
+    await client.query('ROLLBACK')
     throw e
   } finally {
     client.release()
@@ -126,32 +149,32 @@ const UPDATE = async ({ message }, id) => {
   const client = await DB.connect()
   try {
     await client.query('BEGIN')
-  
+    
     const post = await DB.query(`
     SELECT author, created, forum, id, message, thread
     FROM post WHERE id=$1`, [ id ])
-  
+    
     if ( !post.rows.length ) {
       await client.query('ROLLBACK')
       throw new Error('Post not found')
     }
-    if(!message && message !== '') {
-      post.rows[0].isEdited = false
-      return post.rows[0]
+    if ( !message && message !== '' ) {
+      post.rows[ 0 ].isEdited = false
+      return post.rows[ 0 ]
     }
     const postEdited = await DB.query(`
   UPDATE post SET message = $1
   WHERE id=$2
   RETURNING author, created, forum, id, message, thread`, [ message, id ])
-  
-    if(post.rows[0].message !== postEdited.rows[0].message) {
-      postEdited.rows[0].isEdited = true
-      await DB.query(`UPDATE post SET "isEdited"=TRUE WHERE id=$1`, [id])
+    
+    if ( post.rows[ 0 ].message !== postEdited.rows[ 0 ].message ) {
+      postEdited.rows[ 0 ].isEdited = true
+      await DB.query(`UPDATE post SET "isEdited"=TRUE WHERE id=$1`, [ id ])
     } else {
-      postEdited.rows[0].isEdited = false
+      postEdited.rows[ 0 ].isEdited = false
     }
-    return postEdited.rows[0]
-  }catch ( e ) {
+    return postEdited.rows[ 0 ]
+  } catch ( e ) {
     await client.query('ROLLBACK')
     throw e
   } finally {
@@ -165,14 +188,14 @@ const GET = async (id, query) => {
     await client.query('BEGIN')
     const result = {}
     const post = await client.query(`
-  SELECT author, created, forum, id, message, thread, "isEdited"
+  SELECT author, created, parent, forum, id, message, thread, "isEdited"
   FROM post WHERE id=$1`, [ id ])
     
     if ( !post.rows.length ) {
       throw new Error('Post not found')
     }
     result.post = post.rows[ 0 ]
-    if(!result.post.isEdited)
+    if ( !result.post.isEdited )
       delete result.post.isEdited
     
     if ( query.related?.includes('thread') ) {

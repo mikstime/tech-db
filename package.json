@@ -3,9 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "nodemon --exec babel-node app.js",
-    "server" : "babel-node app.js",
-    "production": "pm2 start -i max npm -- run server"
+    "start_fail": "pm2 start processes.json --no-daemon",
+    "start:dev": "nodemon --exec babel-node app.js",
+    "server" : "NODE_ENV=production babel-node app.js",
+    "start": "NODE_ENV=production pm2-runtime start -i max babel-node -- app.js"
   },
   "dependencies": {
     "babel-polyfill": "^6.26.0",

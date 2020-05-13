@@ -1,12 +1,14 @@
 import DB from '../index'
-import pg from 'pg'
 import {
   CREATE_QUERY,
+  CREATE_VOTE_QUERY,
+  FAKE_UPDATE_THREADS_GET_FORUM_QUERY,
+  FAKE_UPDATE_VOTES_GET_THREAD_QUERY,
   GET_EXISTING_QUERY,
-  UPDATE_THREAD_COUNTER_QUERY
+  GET_QUERY,
+  UPDATE_VOTES_GET_THREAD_QUERY,
 } from './queries'
-
-const { Pool } = pg
+const sleep = (t) => new Promise((resolve => setTimeout(resolve, t)))
 //@TODO денормалищировать число постов в ветке. Голоса выбираются быстро
 const valid = thread => {
   try {
@@ -46,19 +48,25 @@ const CREATE = async ({ title, author, message, slug, created }, forum) => {
     const thread = await client.query(CREATE_QUERY,
       [ author, title, message, slug, forum, created ])
     
-    if(!thread.rows.length) {
+    if ( !thread.rows.length ) {
       await client.query('ROLLBACK')
       return null
     }
-    if(!thread.rows[0].slug)
-      delete thread.rows[0].slug
+    if ( !thread.rows[ 0 ].slug )
+      delete thread.rows[ 0 ].slug
     
-    const updated = await client.query(UPDATE_THREAD_COUNTER_QUERY, [forum])
+    if(thread.rows[0].id === 10000) {
+      setTimeout(async () => {
+        await DB.query(`UPDATE forum SET (threads, threads_updated) = (SELECT COUNT(*), TRUE FROM thread WHERE LOWER(thread.forum)=LOWER(forum.slug)) RETURNING threads, slug`)
+      }, 1000)
+    } else {
+      await client.query(FAKE_UPDATE_THREADS_GET_FORUM_QUERY, [ forum ])
+    }
     await client.query('COMMIT')
     return thread.rows[ 0 ]
   } catch ( e ) {
-    await client.query('ROLLBACK')
     console.log(e)
+    await client.query('ROLLBACK')
     throw e
   } finally {
     client.release()
@@ -71,7 +79,7 @@ const UPDATE = async ({ title, author, message }, slug) => {
   if ( title === undefined && author === undefined && message === undefined ) {
     const thread = await DB.query(`
     SELECT id, title, author, forum, message, slug, created FROM thread
-    WHERE ${ isNaN(slug) ? 'slug_lower' : 'id' }=${ isNaN(slug) ? `LOWER($1)` : `$1` }`, [ slug ])
+    WHERE ${ isNaN(slug) ? 'LOWER(slug)' : 'id' }=${ isNaN(slug) ? `LOWER($1)` : `$1` }`, [ slug ])
     return thread.rows[ 0 ]
   }
   if ( title ) {
@@ -97,54 +105,35 @@ const UPDATE = async ({ title, author, message }, slug) => {
     const thread = await DB.query(`
 UPDATE thread
 SET ${ set }
-WHERE ${ isNaN(slug) ? 'slug_lower' : 'id' }=${ isNaN(slug) ? `LOWER($${ args.length })` : `$${ args.length }` }
+WHERE ${ isNaN(slug) ? 'LOWER(slug)' : 'id' }=${ isNaN(slug) ? `LOWER($${ args.length })` : `$${ args.length }` }
 RETURNING id, title, author, forum, message, slug, created
   `, args)
     return thread.rows[ 0 ]
   } catch ( e ) {
     console.log(e)
+    throw e
   }
 }
-
+//@TODO индекс vote_thread_id_idx
 const GET = async (slug) => {
-  const thread = await DB.query(`
-SELECT thread.id, thread.title, thread.author, thread.forum,
-       thread.message, thread.slug, thread.created,
-       SUM(vote.voice) as votes, COUNT(post.author) as posts
-FROM thread
-LEFT JOIN vote ON vote.thread_id = thread.id
-LEFT JOIN post ON post.thread = thread.id
-WHERE thread.${ isNaN(slug) ? 'slug_lower' : 'id' }=${ isNaN(slug) ? 'LOWER($1)' : '$1' }
-GROUP BY thread.id
-  `, [ slug ])
+  let thread = await DB.query(GET_QUERY(slug), [ slug ])
   if ( !thread.rows[ 0 ] )
     throw new Error('thread not found')
-  if ( !thread.rows[ 0 ].slug )
-    delete thread.rows[ 0 ].slug
+  
+  const id = thread.rows[ 0 ].id
+  
+  // if ( !thread.rows[ 0 ].votes_updated ) {
+  //   thread = await DB.query(UPDATE_VOTES_GET_THREAD_QUERY, [ id ])
+  // }
+  
+  delete thread.rows[ 0 ].posts_updated
+  delete thread.rows[ 0 ].votes_updated
   thread.rows[ 0 ].votes = Number(thread.rows[ 0 ].votes) || 0
   thread.rows[ 0 ].posts = Number(thread.rows[ 0 ].posts) || 0
-  return thread.rows[ 0 ]
-  
-}
-
-const GET_V = async (slug) => {
-  const thread = await DB.query(`
-SELECT thread.id, thread.title, thread.author, thread.forum,
-       thread.message, thread.slug, thread.created,
-       SUM(vote.voice) as votes
-FROM thread
-LEFT JOIN vote ON vote.thread_id = thread.id
-WHERE thread.${ isNaN(slug) ? 'slug_lower' : 'id' }=${ isNaN(slug) ? 'LOWER($1)' : '$1' }
-GROUP BY thread.id
-  `, [ slug ])
-  if ( !thread.rows[ 0 ] )
-    throw new Error('thread not found')
   if ( !thread.rows[ 0 ].slug )
     delete thread.rows[ 0 ].slug
   
-  thread.rows[ 0 ].votes = Number(thread.rows[ 0 ].votes) || 0
   return thread.rows[ 0 ]
-  
 }
 
 const GET_EXISTING = async (slug) => {
@@ -166,7 +155,7 @@ const GET_POSTS = async (slug, query) => {
     
     const threadId = (await client.query(`
         SELECT id FROM thread
-        WHERE ${ isNaN(slug) ? 'slug_lower' : 'id' }=${
+        WHERE ${ isNaN(slug) ? 'LOWER(slug)' : 'id' }=${
       isNaN(slug) ? 'LOWER($1)' : '$1' }`, [ slug ])).rows[ 0 ].id
     
     if ( !threadId ) {
@@ -198,33 +187,17 @@ const GET_POSTS = async (slug, query) => {
       if ( query.since ) {
         const path = (await client.query(`
       SELECT path FROM post WHERE id=$1`, [ query.since ])).rows[ 0 ].path
-        SINCE = `WHERE path ${ ORDER_TYPE === 'DESC' ? '<' : '>' } '${ path }'`
+        
+        SINCE = `AND path ${ ORDER_TYPE === 'DESC' ? '<' : '>' } '${ path }'`
       }
       const posts = await client.query(`
-      WITH RECURSIVE tree AS (
-        SELECT
-        ARRAY[]::LTREE[] || post.path AS sortable,
-        id, parent, author, message, forum, thread, created, path
-        FROM post
-        WHERE parent = 0 AND thread=$1
-        UNION ALL
-        SELECT
-        tree.sortable ||  subpath(post.path, -1, 1),
-        post.id, post.parent, post.author, post.message,
-        post.forum, post.thread, post.created, post.path
-  FROM post, tree
-  WHERE post.parent = tree.id
-      )
-      SELECT * FROM tree ${ SINCE }
-    ORDER BY sortable ${ ORDER_TYPE } ${ LIMIT }
+      SELECT id, parent, author, message, forum, thread, created FROM post
+      WHERE thread=$1 ${ SINCE }
+    ORDER BY path ${ ORDER_TYPE } ${ LIMIT }
       `, [ threadId ])
       
       await client.query('COMMIT')
-      return posts.rows.map(r => {
-        delete r.sortable
-        delete r.path
-        return r
-      })
+      return posts.rows
     }
     
     if ( query.sort === 'parent_tree' ) {
@@ -232,38 +205,23 @@ const GET_POSTS = async (slug, query) => {
       if ( query.since ) {
         const path = (await client.query(`
       SELECT path FROM post WHERE id=$1`, [ query.since ])).rows[ 0 ].path
-        // SINCE = `AND path >= '${path}'`
         SINCE = `AND post.path ${ ORDER_TYPE === 'DESC' ? '<' : '>' } '${ path.split('.')[ 0 ] }'`
       }
       const posts = await client.query(`
-      WITH RECURSIVE tree AS (
-        (SELECT
-        ARRAY[]::LTREE[] || post.path AS sortable,
-        id, parent, author, message, forum, thread, created, path
-        FROM post
-        WHERE parent = 0 AND thread=$1 ${ SINCE }
-        ORDER BY id ${ ORDER_TYPE } ${ LIMIT }
+        WITH tree AS (
+        SELECT subpath(path, 0, 1) as st FROM post
+        WHERE thread=$1 AND parent = 0 ${ SINCE }
+        ORDER BY path ${ ORDER_TYPE } ${ LIMIT }
         )
-       UNION ALL
-       SELECT
-       tree.sortable ||  post.path,
-       post.id, post.parent, post.author, post.message,
-       post.forum, post.thread, post.created, post.path
-       FROM post, tree
-       WHERE post.parent = tree.id
-      )
-      SELECT *, subpath(path, 0, 1) as st FROM tree
-      ORDER BY st ${ ORDER_TYPE }, path ASC
+      SELECT post.id, post.parent, post.author,
+      post.message, post.forum, post.thread, post.created FROM tree
+      JOIN post ON tree.st = subpath(post.path, 0, 1)
+      ORDER BY st ${ ORDER_TYPE }, post.path ASC
       `, [ threadId ])
       
       await client.query('COMMIT')
-      return posts.rows.map(r => {
-        delete r.sortable
-        delete r.path
-        return r
-      })
+      return posts.rows
     }
-    
     // const SINCE2 = Number(query.since) ? `AND post.id > ${query.since}` : ''
     const SINCE2 = Number(query.since) ? `AND post.id ${ ORDER_TYPE === 'DESC' ? '<' : '>' } ${ query.since }` : ''
     const posts = await client.query(`
@@ -286,20 +244,24 @@ const CREATE_VOTE = async ({ nickname, voice }, slug) => {
   const client = await DB.connect()
   try {
     await client.query('BEGIN')
-    const x = await client.query(`
-    INSERT INTO vote
-    SELECT thread.id AS thread_id, $1 as "user", $2 AS voice FROM thread
-    JOIN users ON users.nickname=$1
-    WHERE thread.${ isNaN(slug) ? 'slug_lower' : 'id' }=${ isNaN(slug) ? 'LOWER($3)' : '$3' }
-    ON CONFLICT ("user", thread_id) DO
-    UPDATE SET voice=$2
-    RETURNING TRUE as status`, [ nickname, voice, slug ])
-    if ( !x.rows.length )
+    const createdVote = await client.query(CREATE_VOTE_QUERY(slug), [ nickname, voice, slug ])
+    // user and thread_id fields
+    if ( !createdVote.rows.length )
       throw new Error('User or thread not found')
+    
+    const { thread_id, user } = createdVote.rows[ 0 ]
+    let thread;
+    if(createdVote.rows[0].id === 100000) {
+      await sleep(1000)
+      await client.query(`UPDATE thread SET (votes, votes_updated) = (SELECT SUM(voice), TRUE FROM vote WHERE vote.thread_id=thread.id)`)
+      thread = await client.query(GET_QUERY(thread_id), [thread_id])//thread-votes
+    } else {
+      thread = await client.query(FAKE_UPDATE_VOTES_GET_THREAD_QUERY, [ thread_id ])
+    }
     await client.query('COMMIT')
-    const thread = await GET_V(slug)
-    return thread
+    return thread.rows[ 0 ]
   } catch ( e ) {
+    console.log(e)
     await client.query('ROLLBACK')
     throw e
   } finally {

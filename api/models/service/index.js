@@ -22,7 +22,8 @@ const GET = async () => {
 const DELETE = async () => {
   try {
     await DB.query(`
-  TRUNCATE TABLE users, post, thread, forum, vote`)
+  TRUNCATE TABLE users, post, thread, forum, vote RESTART IDENTITY CASCADE`)
+    await DB.query(`VACUUM FULL`)
   } catch ( e ) {
     console.log(e)
   }

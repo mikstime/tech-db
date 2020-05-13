@@ -1,17 +1,8 @@
 FROM ubuntu:18.04 AS release
 
-
-
-FROM node:11
-RUN mkdir /practice_docker
-ADD . /practice_docker
-WORKDIR /practice_docker
-RUN npm i
-
-
-
-
 MAINTAINER Balitsky M.M
+#ENV PGVER 10
+#RUN apt-get update && apt-get install -y postgresql-$PGVER
 
 #
 # Установка postgresql
@@ -42,16 +33,11 @@ EXPOSE 5432
 # Add VOLUMEs to allow backup of config, logs and databases
 VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 
-# Back to the root user
 USER root
 
-# Объявлем порт сервера
 EXPOSE 5000
 
-# Собранный ранее сервер
-COPY --from=build go/bin/hello-server /usr/bin/
+FROM node:latest AS node_base
+RUN npm i
 
-#
-# Запускаем PostgreSQL и сервер
-#
-CMD service postgresql start && hello-server --scheme=http --port=5000 --host=0.0.0.0 --database=postgres://docker:docker@localhost/docker
+CMD service postgresql start && npm production
