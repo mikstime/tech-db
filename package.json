@@ -9,7 +9,7 @@
     "start:dev": "nodemon --exec babel-node app.js",
     "server": "NODE_ENV=production babel-node app.js",
     "build": "babel . -d dist -s --ignore \"node_modules/**/*.js\"",
-    "start": "node -r @babel/register -r dotenv/config dist/app.js",
+    "start": "babel . -d dist -s --ignore \"node_modules/**/*.js\" && node -r @babel/register -r dotenv/config dist/app.js",
     "start1": "NODE_ENV=production pm2-runtime start -i max babel-node -- app.js"
   },
   "dependencies": {
