@@ -56,12 +56,10 @@ RUN npm install
 RUN npm install pm2 -g
 # Если вы создаете сборку для продакшн
 # RUN npm ci --only=production
-
 # копируем исходный код
 COPY . .
 
 EXPOSE 5000
 
 ENV PGPASSWORD docker
-CMD npm run build
 CMD service postgresql start && psql -h localhost -d docker -U docker -p 5432 -a -q -f ./db/db.sql && npm start
