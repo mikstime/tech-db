@@ -9,7 +9,7 @@
     "start:dev": "nodemon --exec babel-node app.js",
     "server": "NODE_ENV=production babel-node app.js",
     "bb": "node --experimental-modules app.js",
-    "start": "babel-node app.js",
+    "start": "node -r @babel/register -r dotenv/config app.js",
     "start1": "NODE_ENV=production pm2-runtime start -i max babel-node -- app.js"
   },
   "dependencies": {
