@@ -2,12 +2,15 @@
   "name": "tech-db",
   "version": "0.0.0",
   "private": true,
+  "main" : "app.js",
+  "type": "module",
   "scripts": {
     "start_fail": "pm2 start processes.json --no-daemon",
     "start:dev": "nodemon --exec babel-node app.js",
-    "server" : "NODE_ENV=production babel-node app.js",
-    "start" : "babel-node --experimental-modules app.js",
-    "start1": "NODE_ENV=production pm2-runtime start -i max babel-node -- app.js --no-daemon"
+    "server": "NODE_ENV=production babel-node app.js",
+    "start1": "node dist/app.js",
+    "build": "npx babel . -d dist",
+    "start": "NODE_ENV=production pm2-runtime start -i max dist/app.js"
   },
   "dependencies": {
     "babel-polyfill": "^6.26.0",
@@ -22,9 +25,10 @@
     "pug": "^2.0.4"
   },
   "devDependencies": {
-    "@babel/core": "^7.9.0",
+    "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.9.6",
     "@babel/node": "^7.8.7",
     "@babel/plugin-proposal-nullish-coalescing-operator": "^7.8.3",
-    "@babel/preset-env": "^7.9.5"
+    "@babel/preset-env": "^7.9.6"
   }
 }
