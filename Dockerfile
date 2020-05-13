@@ -55,7 +55,8 @@ COPY package*.json ./
 RUN npm install
 RUN npm install pm2 -g
 RUN npm install -g babel-cli
-RUN  npm i babel-node -g
+RUN npm i babel-node -g
+RUN npm run build
 # Если вы создаете сборку для продакшн
 # RUN npm ci --only=production
 # копируем исходный код
