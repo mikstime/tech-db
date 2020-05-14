@@ -24,7 +24,7 @@ const DELETE = async () => {
   try {
     await client.query('BEGIN')
     await client.query(`
-  TRUNCATE TABLE users, post, thread, vote RESTART IDENTITY CASCADE`)
+  TRUNCATE TABLE users, post, forum, thread, vote RESTART IDENTITY CASCADE`)
     await client.query(`DROP TABLE post`)
     await client.query(`
     CREATE UNLOGGED TABLE post
@@ -41,6 +41,7 @@ const DELETE = async () => {
 ) PARTITION BY LIST(LOWER(forum))
 `)
     await client.query('COMMIT')
+    await DB.query('VACUUM FULL')
   } catch ( e ) {
     await client.query('ROLLBACK')
     console.log(e)

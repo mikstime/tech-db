@@ -36,45 +36,40 @@ const CREATE = async ({ user, title, slug }) => {
     await client.query('BEGIN')
     const forum = await client.query(CREATE_QUERY, [ user, title, slug ])
     //@TODO create post partition
-    if(!forum.rows.length)
+    if ( !forum.rows.length )
       return null
-    const tableName = `post_${forum.rows[0].slug.toLowerCase()}`
+    const tableName = `post_${ forum.rows[ 0 ].slug.toLowerCase() }`
     const x = await client.query(`
-    CREATE UNLOGGED TABLE "${tableName}" PARTITION OF post FOR VALUES IN ('${forum.rows[0].slug.toLowerCase()}');
+    CREATE UNLOGGED TABLE "${ tableName }" PARTITION OF post FOR VALUES IN ('${ forum.rows[ 0 ].slug.toLowerCase() }');
     `)
-    await client.query(`
-    CREATE INDEX "${tableName}_id_idx" ON "${tableName}" USING btree(id);
+    await Promise.all(
+      [
+        client.query(`
+    CREATE INDEX "${ tableName }_id_idx" ON "${ tableName }" USING btree(id);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_path_idx" ON "${ tableName }" USING gist(path);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_path_st_idx" ON "${ tableName }" USING gist(subpath(path,0, 1));
+    `), client.query(`
+    CREATE INDEX "${ tableName }_path_st_path_idx" ON "${ tableName }" (subpath(path,0, 1), path);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_since_tree_idx" ON "${ tableName }" (thread, path);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_since_idx" ON "${ tableName }" (parent, thread, path);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_parent_idx" ON "${ tableName }" USING btree(parent);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_thread_idx" ON "${ tableName }" USING btree(thread);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_parent_thread_idx" ON "${ tableName }" USING btree(parent, thread);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_created_idx" ON "${ tableName }" USING btree(created);
+    `),
+        client.query(`
+    CREATE INDEX "${ tableName }_author_idx" ON "${ tableName }" USING btree(LOWER(author));
     `)
-    await client.query(`
-    CREATE INDEX "${tableName}_path_idx" ON "${tableName}" USING gist(path);
-    `)
-    await client.query(`
-    CREATE INDEX "${tableName}_path_st_idx" ON "${tableName}" USING gist(subpath(path,0, 1));
-    `)
-    await client.query(`
-    CREATE INDEX "${tableName}_path_st_path_idx" ON "${tableName}" (subpath(path,0, 1), path);
-    `)
-    await client.query(`
-    CREATE INDEX "${tableName}_since_tree_idx" ON "${tableName}" (thread, path);
-    `)
-    await client.query(`
-    CREATE INDEX "${tableName}_since_idx" ON "${tableName}" (parent, thread, path);
-    `)
-    await client.query(`
-    CREATE INDEX "${tableName}_parent_idx" ON "${tableName}" USING btree(parent);
-    `)
-    await client.query(`
-    CREATE INDEX "${tableName}_thread_idx" ON "${tableName}" USING btree(thread);
-    `)
-    await client.query(`
-    CREATE INDEX "${tableName}_parent_thread_idx" ON "${tableName}" USING btree(parent, thread);
-    `)
-    await client.query(`
-    CREATE INDEX "${tableName}_created_idx" ON "${tableName}" USING btree(created);
-    `)
-    await client.query(`
-    CREATE INDEX "${tableName}_author_idx" ON "${tableName}" USING btree(LOWER(author));
-    `)
+      ]
+    )
     // await client.query(`
     // CREATE INDEX "${tableName}_forum_idx" ON "${tableName}" USING btree(LOWER(forum));
     // `)
@@ -83,7 +78,6 @@ const CREATE = async ({ user, title, slug }) => {
     // `)
     
     await client.query('COMMIT')
-    await DB.query('VACUUM FULL')
     return forum.rows[ 0 ]
   } catch ( e ) {
     await client.query('ROLLBACK')
@@ -103,8 +97,8 @@ const GET = async slug => {
   if ( !forum.rows.length ) {
     return undefined
   }
-  if(!forum.rows[0].threads_updated) {
-    forum = await DB.query(UPDATE_THREADS_GET_FORUM_QUERY, [slug])
+  if ( !forum.rows[ 0 ].threads_updated ) {
+    forum = await DB.query(UPDATE_THREADS_GET_FORUM_QUERY, [ slug ])
   }
   delete forum.rows[ 0 ].threads_updated
   forum.rows[ 0 ].threads = Number(forum.rows[ 0 ].threads)
