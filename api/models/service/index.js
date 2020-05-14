@@ -20,12 +20,33 @@ const GET = async () => {
 }
 
 const DELETE = async () => {
+  const client = await DB.connect()
   try {
-    await DB.query(`
-  TRUNCATE TABLE users, post, thread, forum, vote RESTART IDENTITY CASCADE`)
-    await DB.query(`VACUUM FULL`)
+    await client.query('BEGIN')
+    await client.query(`
+  TRUNCATE TABLE users, post, thread, vote RESTART IDENTITY CASCADE`)
+    await client.query(`DROP TABLE post`)
+    await client.query(`
+    CREATE UNLOGGED TABLE post
+(
+    id SERIAL,
+    parent int default 0 NOT NULL,
+    author CITEXT COLLATE "C" NOT NULL,
+    path ltree,
+    "isEdited" BOOLEAN DEFAULT FALSE,
+    message TEXT,
+    forum CITEXT COLLATE "C" NOT NULL,
+    "thread" int,
+    created timestamp NOT NULL DEFAULT NOW()
+) PARTITION BY LIST(LOWER(forum))
+`)
+    await client.query('COMMIT')
   } catch ( e ) {
+    await client.query('ROLLBACK')
     console.log(e)
+    throw e
+  } finally {
+    client.release();
   }
 }
 

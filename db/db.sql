@@ -23,6 +23,7 @@ CREATE TABLE forum
     posts INT DEFAULT 0--DENORMALIZATION
 );
 --AVOID DUPLICATES, QUICK SEARCH AND JOIN
+--@TODO partition using functions add keys automatically
 CREATE UNIQUE INDEX forum_slug_lower_idx ON forum USING btree(LOWER(slug));
 CREATE INDEX forum_slug_lower_hash_idx ON forum USING btree(LOWER(slug));
 CREATE TABLE thread
@@ -49,9 +50,9 @@ CREATE INDEX thread_forum_idx ON thread USING btree(LOWER(forum));
 CREATE INDEX thread_author_idx ON thread USING btree(LOWER(author));
 CREATE INDEX thread_author_forum_idx ON thread (LOWER(forum), LOWER(author));
 
-CREATE TABLE post
+CREATE UNLOGGED TABLE post
 (
-    id SERIAL PRIMARY KEY,
+    id SERIAL,
     parent int default 0 NOT NULL,
     author CITEXT COLLATE "C" NOT NULL,
     path ltree,
@@ -60,28 +61,28 @@ CREATE TABLE post
     forum CITEXT COLLATE "C" NOT NULL,
     "thread" int,
     created timestamp NOT NULL DEFAULT NOW()
-);
+) PARTITION BY LIST(LOWER(forum));
+--
+--CREATE INDEX post_id_idx ON post USING btree(id);
+----
+--CREATE INDEX post_path_idx ON post USING gist(path);
+--CREATE INDEX post_path_st_idx ON post USING gist(subpath(path,0, 1)); --@TODO default path to avoid error (from 7s to 100ms)
+--CREATE INDEX post_path_st_path_idx ON post (subpath(path,0, 1), path);
+----
+--CREATE INDEX post_since_tree_idx ON post (thread, path);
+--CREATE INDEX post_since_idx ON post (parent, thread, path);
+----
+--CREATE INDEX post_parent_idx ON post USING btree(parent);
+--CREATE INDEX post_thread_idx ON post USING btree(thread);
+--CREATE INDEX post_parent_thread_idx ON post USING btree(parent, thread);
+----
+--CREATE INDEX post_created_idx ON post USING btree(created);
+----
+--CREATE INDEX post_author_idx ON post USING btree(LOWER(author));
+--CREATE INDEX post_forum_lower_idx ON post USING btree(LOWER(forum));
+--CREATE INDEX post_author_forum ON post(LOWER(author), LOWER(forum)); --search users
 
-CREATE INDEX post_id_idx ON post USING btree(id);
---
-CREATE INDEX post_path_idx ON post USING gist(path);
-CREATE INDEX post_path_st_idx ON post USING gist(subpath(path,0, 1)); --@TODO default path to avoid error (from 7s to 100ms)
-CREATE INDEX post_path_st_path_idx ON post (subpath(path,0, 1), path);
---
-CREATE INDEX post_since_tree_idx ON post (thread, path);
-CREATE INDEX post_since_idx ON post (parent, thread, path);
---
-CREATE INDEX post_parent_idx ON post USING btree(parent);
-CREATE INDEX post_thread_idx ON post USING btree(thread);
-CREATE INDEX post_parent_thread_idx ON post USING btree(parent, thread);
---
-CREATE INDEX post_created_idx ON post USING btree(created);
---
-CREATE INDEX post_author_idx ON post USING btree(LOWER(author));
-CREATE INDEX post_forum_lower_idx ON post USING btree(LOWER(forum));
-CREATE INDEX post_author_forum ON post(LOWER(author), LOWER(forum)); --search users
-
-CREATE TABLE vote
+CREATE UNLOGGED TABLE vote
 (
     thread_id int,
     "user" CITEXT COLLATE "C" NOT NULL,

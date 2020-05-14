@@ -73,7 +73,6 @@ const CREATE = async (posts, slug) => {
     const thread = await client.query(GET_EXISTING_THREAD_QUERY(slug), [slug])
     
     const { id, forum } = thread.rows[ 0 ]
-    
     if ( !id ) {
       client.query('ROLLBACK')
       return null
@@ -82,6 +81,7 @@ const CREATE = async (posts, slug) => {
       await client.query('COMMIT')
       return []
     }
+    const TABLE_NAME = `post_${forum.toLowerCase()}`
         let l = 0
     const [ args, values ] = posts.reduce((acc, p) => {
       if ( acc[ 0 ].length )
@@ -89,19 +89,18 @@ const CREATE = async (posts, slug) => {
       acc[ 0 ].push(p.parent || 0, p.author, p.message, forum, id)
       if ( p.created )
         acc[ 0 ].push(p.created)
-      acc[ 0 ].push('9.9')
+      acc[ 0 ].push('9')
       acc[ 1 ] += `($${ ++l }, $${ ++l }, $${ ++l }, $${ ++l }, $${ ++l },${ p.created ? `$${ ++l },` : 'NOW(),' } $${ ++l })`
       return acc
     }, [ [], '' ])
-    const cposts = await client.query(CREATE_QUERY(id, values), args)
-  
+    const cposts = await client.query(CREATE_QUERY(id, values, TABLE_NAME), args)
     await Promise.all(cposts.rows.map(async (post, i) => {
       let parentPath = ''
       const { parent, id } = post
       const args = [post.author]
       if(parent)
         args.push(parent)
-      const checked = await DB.query(CHECK_AUTHORS_AND_PARENTS_QUERY(post.parent), args)
+      const checked = await DB.query(CHECK_AUTHORS_AND_PARENTS_QUERY(post.parent, TABLE_NAME), args)
       if(!checked.rows.length) {
         throw new Error('No parent or author')
       }
@@ -112,24 +111,21 @@ const CREATE = async (posts, slug) => {
       if ( !parent ) {
         delete post.parent
         await client.query(`
-            UPDATE post SET path ='${ numTo12lenStr(id) }' WHERE post.id=$1
+            UPDATE "${TABLE_NAME}" SET path ='${ numTo12lenStr(id) }' WHERE "${TABLE_NAME}".id=$1
             `, [ id ])
       } else {
         await client.query(`
-            UPDATE post SET path = '${ checked.rows[0].path + '.' + numTo12lenStr(id) }' WHERE post.id=$1
+            UPDATE "${TABLE_NAME}" SET path = '${ checked.rows[0].path + '.' + numTo12lenStr(id) }' WHERE "${TABLE_NAME}".id=$1
            `, [ id ])
       }
     }))
     
     if(cposts.rows[cposts.rows.length -1].id === 1500000) {
       try {
-        //await client.query(`UPDATE forum SET threads = (SELECT COUNT(*) FROM thread WHERE LOWER(thread.forum)=LOWER(forum.slug))`)//forum-threads
         await client.query(`UPDATE forum SET posts = (SELECT COUNT(*) FROM post WHERE LOWER(post.forum)=LOWER(forum.slug))`)//forum-posts
         await client.query(`UPDATE thread SET (posts, posts_updated) = (SELECT COUNT(*), TRUE FROM post WHERE post.thread=thread.id)`)//thread-posts
-        // await client.query(`UPDATE thread SET votes = (SELECT SUM(voice) FROM vote WHERE vote.thread_id=thread.id)`)//thread-votes
       } catch ( e ) {
         throw e;
-        console.log(e)
       }
     } else {
       await client.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [forum])

@@ -30,8 +30,67 @@ const validAny = forum => {
 }
 
 const CREATE = async ({ user, title, slug }) => {
-  const forum = await DB.query(CREATE_QUERY, [ user, title, slug ])
-  return forum.rows[ 0 ]
+  const client = await DB.connect()
+  
+  try {
+    await client.query('BEGIN')
+    const forum = await client.query(CREATE_QUERY, [ user, title, slug ])
+    //@TODO create post partition
+    if(!forum.rows.length)
+      return null
+    const tableName = `post_${forum.rows[0].slug.toLowerCase()}`
+    const x = await client.query(`
+    CREATE UNLOGGED TABLE "${tableName}" PARTITION OF post FOR VALUES IN ('${forum.rows[0].slug.toLowerCase()}');
+    `)
+    await client.query(`
+    CREATE INDEX "${tableName}_id_idx" ON "${tableName}" USING btree(id);
+    `)
+    await client.query(`
+    CREATE INDEX "${tableName}_path_idx" ON "${tableName}" USING gist(path);
+    `)
+    await client.query(`
+    CREATE INDEX "${tableName}_path_st_idx" ON "${tableName}" USING gist(subpath(path,0, 1));
+    `)
+    await client.query(`
+    CREATE INDEX "${tableName}_path_st_path_idx" ON "${tableName}" (subpath(path,0, 1), path);
+    `)
+    await client.query(`
+    CREATE INDEX "${tableName}_since_tree_idx" ON "${tableName}" (thread, path);
+    `)
+    await client.query(`
+    CREATE INDEX "${tableName}_since_idx" ON "${tableName}" (parent, thread, path);
+    `)
+    await client.query(`
+    CREATE INDEX "${tableName}_parent_idx" ON "${tableName}" USING btree(parent);
+    `)
+    await client.query(`
+    CREATE INDEX "${tableName}_thread_idx" ON "${tableName}" USING btree(thread);
+    `)
+    await client.query(`
+    CREATE INDEX "${tableName}_parent_thread_idx" ON "${tableName}" USING btree(parent, thread);
+    `)
+    await client.query(`
+    CREATE INDEX "${tableName}_created_idx" ON "${tableName}" USING btree(created);
+    `)
+    await client.query(`
+    CREATE INDEX "${tableName}_author_idx" ON "${tableName}" USING btree(LOWER(author));
+    `)
+    // await client.query(`
+    // CREATE INDEX "${tableName}_forum_idx" ON "${tableName}" USING btree(LOWER(forum));
+    // `)
+    // await client.query(`
+    // CREATE INDEX "${tableName}_author_forum_idx" ON "${tableName}" (LOWER(forum), LOWER(author));
+    // `)
+    
+    await client.query('COMMIT')
+    await DB.query('VACUUM FULL')
+    return forum.rows[ 0 ]
+  } catch ( e ) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
 }
 
 const GET_EXISTING = async slug => {
@@ -61,7 +120,6 @@ const GET_USERS = async (slug, query) => {
     const users = await DB.query(GET_USERS_QUERY(query), args)
     return users.rows
   } catch ( e ) {
-    console.log(e)
     throw e
   }
 }
@@ -95,7 +153,6 @@ const GET_THREADS = async (slug, query) => {
     })
     return threads.rows
   } catch ( e ) {
-    console.log(e)
     throw e
   }
 }

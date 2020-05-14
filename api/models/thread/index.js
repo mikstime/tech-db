@@ -153,11 +153,12 @@ const GET_POSTS = async (slug, query) => {
   try {
     await client.query('BEGIN')
     
-    const threadId = (await client.query(`
-        SELECT id FROM thread
+    const thread = (await client.query(`
+        SELECT id, forum FROM thread
         WHERE ${ isNaN(slug) ? 'LOWER(slug)' : 'id' }=${
-      isNaN(slug) ? 'LOWER($1)' : '$1' }`, [ slug ])).rows[ 0 ].id
-    
+      isNaN(slug) ? 'LOWER($1)' : '$1' }`, [ slug ])).rows[ 0 ]
+    const threadId = thread.id
+    const threadForum = thread.forum
     if ( !threadId ) {
       await client.query('ROLLBACK')
       return null
@@ -169,12 +170,14 @@ const GET_POSTS = async (slug, query) => {
       query.desc === 'false' ? 'ASC' : ''
     
     const SINCE = Number(query.since) ? `AND post.id > ${ query.since }` : ''
+    
+    const TABLE_NAME = `"post_${threadForum.toLowerCase()}"`
     if ( query.sort === 'flat' ) {
       const SINCE = Number(query.since) ? `AND post.id ${ ORDER_TYPE === 'DESC' ? '<' : '>' } ${ query.since }` : ''
       //  parent, author, message, forum, thread, created,
       const posts = await client.query(`
         SELECT id, parent, author, message, forum, thread, created
-        FROM post WHERE thread=$1 ${ SINCE }
+        FROM ${TABLE_NAME} post WHERE thread=$1 ${ SINCE }
         ORDER BY created ${ ORDER_TYPE }, id ${ ORDER_TYPE } ${ LIMIT }
       `, [ threadId ])
       
@@ -191,7 +194,7 @@ const GET_POSTS = async (slug, query) => {
         SINCE = `AND path ${ ORDER_TYPE === 'DESC' ? '<' : '>' } '${ path }'`
       }
       const posts = await client.query(`
-      SELECT id, parent, author, message, forum, thread, created FROM post
+      SELECT id, parent, author, message, forum, thread, created FROM ${TABLE_NAME}
       WHERE thread=$1 ${ SINCE }
     ORDER BY path ${ ORDER_TYPE } ${ LIMIT }
       `, [ threadId ])
@@ -204,18 +207,18 @@ const GET_POSTS = async (slug, query) => {
       let SINCE = ''
       if ( query.since ) {
         const path = (await client.query(`
-      SELECT path FROM post WHERE id=$1`, [ query.since ])).rows[ 0 ].path
+      SELECT path FROM ${TABLE_NAME} WHERE id=$1`, [ query.since ])).rows[ 0 ].path
         SINCE = `AND post.path ${ ORDER_TYPE === 'DESC' ? '<' : '>' } '${ path.split('.')[ 0 ] }'`
       }
       const posts = await client.query(`
         WITH tree AS (
-        SELECT subpath(path, 0, 1) as st FROM post
+        SELECT subpath(path, 0, 1) as st FROM ${TABLE_NAME} post
         WHERE thread=$1 AND parent = 0 ${ SINCE }
         ORDER BY path ${ ORDER_TYPE } ${ LIMIT }
         )
       SELECT post.id, post.parent, post.author,
       post.message, post.forum, post.thread, post.created FROM tree
-      JOIN post ON tree.st = subpath(post.path, 0, 1)
+      JOIN ${TABLE_NAME} post ON tree.st = subpath(post.path, 0, 1)
       ORDER BY st ${ ORDER_TYPE }, post.path ASC
       `, [ threadId ])
       
@@ -226,7 +229,7 @@ const GET_POSTS = async (slug, query) => {
     const SINCE2 = Number(query.since) ? `AND post.id ${ ORDER_TYPE === 'DESC' ? '<' : '>' } ${ query.since }` : ''
     const posts = await client.query(`
         SELECT id, parent, author, message, forum, thread, created
-        FROM post WHERE thread=$1 ${ SINCE2 }
+        FROM ${TABLE_NAME} post WHERE thread=$1 ${ SINCE2 }
         ORDER BY id ${ ORDER_TYPE } ${ LIMIT }`, [ threadId ])
     
     await client.query('COMMIT')

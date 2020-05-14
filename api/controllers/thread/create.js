@@ -22,7 +22,6 @@ export default async (req, res) => {
         }
         res.status(201).send(posts)
       } catch (e) {
-        console.log(e)
         if(e.message === 'invalid parent') {
           res.status(409).send({
             "message": "Can't find user with id #42\n"
