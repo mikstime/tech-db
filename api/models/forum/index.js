@@ -40,7 +40,7 @@ const CREATE = async ({ user, title, slug }) => {
       return null
     const tableName = `post_${ forum.rows[ 0 ].slug.toLowerCase() }`
     const x = await client.query(`
-    CREATE UNLOGGED TABLE "${ tableName }" PARTITION OF post FOR VALUES IN ('${ forum.rows[ 0 ].slug.toLowerCase() }');
+    CREATE TABLE "${ tableName }" PARTITION OF post FOR VALUES IN ('${ forum.rows[ 0 ].slug.toLowerCase() }');
     `)
     await Promise.all(
       [

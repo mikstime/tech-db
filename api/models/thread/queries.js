@@ -58,13 +58,13 @@ WHERE ${ isNaN(slug) ? 'LOWER(slug)' : 'id' }=${ isNaN(slug) ? 'LOWER($3)' : '$3
 RETURNING thread_id, "user"`
 
 export const FAKE_UPDATE_VOTES_GET_THREAD_QUERY =
-  `WITH selected AS (
+`WITH selected AS (
 SELECT DISTINCT on (LOWER("user")) voice, created FROM vote WHERE thread_id=$1
 GROUP BY LOWER("user"), created, voice
 ORDER BY LOWER("user"), created DESC)
 UPDATE thread SET(votes, votes_updated) =
 (
-SELECT SUM(selected.voice), FALSE FROM selected WHERE thread.id=$1)
+SELECT SUM(selected.voice), TRUE FROM selected WHERE thread.id=$1)
 WHERE id=$1
 RETURNING id, title, author, forum, message, slug,
 created, posts, votes, votes_updated, posts_updated`

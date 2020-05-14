@@ -50,7 +50,7 @@ CREATE INDEX thread_forum_idx ON thread USING btree(LOWER(forum));
 CREATE INDEX thread_author_idx ON thread USING btree(LOWER(author));
 CREATE INDEX thread_author_forum_idx ON thread (LOWER(forum), LOWER(author));
 
-CREATE UNLOGGED TABLE post
+CREATE TABLE post
 (
     id SERIAL,
     parent int default 0 NOT NULL,
@@ -82,14 +82,16 @@ CREATE UNLOGGED TABLE post
 --CREATE INDEX post_forum_lower_idx ON post USING btree(LOWER(forum));
 --CREATE INDEX post_author_forum ON post(LOWER(author), LOWER(forum)); --search users
 
-CREATE UNLOGGED TABLE vote
+CREATE TABLE vote
 (
     thread_id int,
     "user" CITEXT COLLATE "C" NOT NULL,
     voice int,
     created timestamptz DEFAULT NOW()
 );
+
 CREATE INDEX vote_created_idx ON vote USING btree(created);
 CREATE INDEX vote_user_idx ON vote USING btree(LOWER("user"));
 CREATE INDEX vote_created_user_idx ON vote USING btree(LOWER("user"), created);
 CREATE INDEX vote_thread_id_idx ON vote USING btree(thread_id);
+CREATE INDEX vote_all ON vote (LOWER("user"), created, thread_id);

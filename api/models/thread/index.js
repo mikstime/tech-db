@@ -253,14 +253,7 @@ const CREATE_VOTE = async ({ nickname, voice }, slug) => {
       throw new Error('User or thread not found')
     
     const { thread_id, user } = createdVote.rows[ 0 ]
-    let thread;
-    if(createdVote.rows[0].id === 100000) {
-      await sleep(1000)
-      await client.query(`UPDATE thread SET (votes, votes_updated) = (SELECT SUM(voice), TRUE FROM vote WHERE vote.thread_id=thread.id)`)
-      thread = await client.query(GET_QUERY(thread_id), [thread_id])//thread-votes
-    } else {
-      thread = await client.query(FAKE_UPDATE_VOTES_GET_THREAD_QUERY, [ thread_id ])
-    }
+    const thread = await client.query(UPDATE_VOTES_GET_THREAD_QUERY, [ thread_id ])
     await client.query('COMMIT')
     return thread.rows[ 0 ]
   } catch ( e ) {
