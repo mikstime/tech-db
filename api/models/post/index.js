@@ -81,7 +81,7 @@ const CREATE = async (posts, slug) => {
       await client.query('COMMIT')
       return []
     }
-    const TABLE_NAME = `post_${ forum.toLowerCase() }`
+    const TABLE_NAME = 'post'//`post_${ forum.toLowerCase() }`
     let l = 2
     const [ args, values ] = posts.reduce((acc, p, i) => {
       if ( acc[ 0 ].length > 2)
@@ -129,8 +129,8 @@ const CREATE = async (posts, slug) => {
         throw e;
       }
     } else {
-    DB.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [forum])
-    DB.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [id])
+    await client.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [forum])
+    await client.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [id])
     }
     await client.query('COMMIT')
     return cposts.rows.map(c => {delete c.path; return c})

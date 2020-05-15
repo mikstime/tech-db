@@ -171,7 +171,7 @@ const GET_POSTS = async (slug, query) => {
     
     const SINCE = Number(query.since) ? `AND post.id > ${ query.since }` : ''
     
-    const TABLE_NAME = `"post_${threadForum.toLowerCase()}"`
+    const TABLE_NAME = 'post'//`"post_${threadForum.toLowerCase()}"`
     if ( query.sort === 'flat' ) {
       const SINCE = Number(query.since) ? `AND post.id ${ ORDER_TYPE === 'DESC' ? '<' : '>' } ${ query.since }` : ''
       //  parent, author, message, forum, thread, created,
