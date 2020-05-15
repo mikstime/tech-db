@@ -12,7 +12,7 @@ import { CHECK_AUTHORS_AND_PARENTS_QUERY, CREATE_QUERY } from './queries'
 
 const numTo12lenStr = (num) => {
   const s = num.toString()
-  return '0'.repeat(12 - s.length) + s
+  return '0'.repeat(7 - s.length) + s
 }
 
 const valid = post => {
@@ -70,7 +70,7 @@ const CREATE = async (posts, slug) => {
       создать пост
     увеличить счетчик постов в форуме и топике
      */
-    const thread = await client.query(GET_EXISTING_THREAD_QUERY(slug), [slug])
+    const thread = await client.query(GET_EXISTING_THREAD_QUERY(slug), [ slug ])
     
     const { id, forum } = thread.rows[ 0 ]
     if ( !id ) {
@@ -81,45 +81,46 @@ const CREATE = async (posts, slug) => {
       await client.query('COMMIT')
       return []
     }
-    const TABLE_NAME = `post_${forum.toLowerCase()}`
-        let l = 0
-    const [ args, values ] = posts.reduce((acc, p) => {
-      if ( acc[ 0 ].length )
+    const TABLE_NAME = `post_${ forum.toLowerCase() }`
+    let l = 2
+    const [ args, values ] = posts.reduce((acc, p, i) => {
+      if ( acc[ 0 ].length > 2)
         acc[ 1 ] += ','
-      acc[ 0 ].push(p.parent || 0, p.author, p.message, forum, id)
-      if ( p.created )
-        acc[ 0 ].push(p.created)
-      acc[ 0 ].push('9')
-      acc[ 1 ] += `($${ ++l }, $${ ++l }, $${ ++l }, $${ ++l }, $${ ++l },${ p.created ? `$${ ++l },` : 'NOW(),' } $${ ++l })`
+      acc[ 0 ].push(p.parent, p.author, p.message, p.created)
+      acc[ 1 ] += `($${ ++l }, $${ ++l }, $${ ++l },$${++l}, ${i})`
       return acc
-    }, [ [], '' ])
-    const cposts = await client.query(CREATE_QUERY(id, values, TABLE_NAME), args)
-    await Promise.all(cposts.rows.map(async (post, i) => {
-      let parentPath = ''
-      const { parent, id } = post
-      const args = [post.author]
-      if(parent)
-        args.push(parent)
-      const checked = await DB.query(CHECK_AUTHORS_AND_PARENTS_QUERY(post.parent, TABLE_NAME), args)
-      if(!checked.rows.length) {
-        throw new Error('No parent or author')
+    }, [ [forum, id], '' ])
+    const query = `
+    INSERT INTO "${TABLE_NAME}"(id,parent, author, message, forum, thread, created, path)
+    (SELECT nextval('post_id_seq'),
+            COALESCE(V.parent::int, 0),
+            V.author, V.message, $1 as forum,
+            COALESCE(post.thread, $2::int),
+            COALESCE(V.created::timestamptz,NOW()),
+            text2ltree(COALESCE(post.path::text || '.', '') || LPAD(currval('post_id_seq')::text, 8, '0')) as path
+    FROM (VALUES ${ values }) V(parent, author, message, created, ind)
+    LEFT JOIN post ON V.parent::int=post.id
+    JOIN users ON LOWER(users.nickname)=LOWER(V.author)
+    ORDER BY ind ASC
+    )
+    RETURNING id, parent, author, message, forum, thread, created, path
+    `
+    const cposts = await client.query(query, args)
+    if ( cposts.rows.length !== posts.length ) {
+      //no author actually
+      throw new Error('No parent or author')
+    }
+    for ( let p of cposts.rows ) {
+      if(p.parent) {
+        if(!p.path || !p.path.includes(p.parent)) {
+          throw new Error('invalid parent')
+        }
       }
-      if(parent && checked.rows[0].thread !== thread.rows[0].id) {
+      if(p.thread !== id) {
         throw new Error('invalid parent')
       }
-      
-      if ( !parent ) {
-        delete post.parent
-        await client.query(`
-            UPDATE "${TABLE_NAME}" SET path ='${ numTo12lenStr(id) }' WHERE "${TABLE_NAME}".id=$1
-            `, [ id ])
-      } else {
-        await client.query(`
-            UPDATE "${TABLE_NAME}" SET path = '${ checked.rows[0].path + '.' + numTo12lenStr(id) }' WHERE "${TABLE_NAME}".id=$1
-           `, [ id ])
-      }
-    }))
-    
+    }
+
     if(cposts.rows[cposts.rows.length -1].id === 1500000) {
       try {
         await client.query(`UPDATE forum SET posts = (SELECT COUNT(*) FROM post WHERE LOWER(post.forum)=LOWER(forum.slug))`)//forum-posts
@@ -128,11 +129,11 @@ const CREATE = async (posts, slug) => {
         throw e;
       }
     } else {
-      await client.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [forum])
-      await client.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [id])
+    DB.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [forum])
+    DB.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [id])
     }
     await client.query('COMMIT')
-    return cposts.rows
+    return cposts.rows.map(c => {delete c.path; return c})
   } catch ( e ) {
     await client.query('ROLLBACK')
     throw e

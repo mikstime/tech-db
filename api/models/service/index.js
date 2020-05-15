@@ -1,22 +1,19 @@
 import DB from '../index'
+
 const GET = async () => {
-  try {
-    const status = await DB.query(`
+  const status = await DB.query(`
   WITH
   U AS (SELECT count(DISTINCT UU.*) as "user" FROM users  UU),
   F AS (SELECT count(DISTINCT FF.*) as forum  FROM forum  FF),
   T AS (SELECT count(DISTINCT TT.*) as thread FROM thread TT),
   P AS (SELECT count(DISTINCT PP.*) as post   FROM post   PP)
   SELECT * FROM U, F, T, P`)
-    status.rows[0].user = Number(status.rows[0].user)
-    status.rows[0].forum = Number(status.rows[0].forum)
-    status.rows[0].thread = Number(status.rows[0].thread)
-    status.rows[0].post = Number(status.rows[0].post)
-    return status.rows[0]
-  } catch ( e ) {
-    console.log(e)
-  }
-
+  status.rows[ 0 ].user = Number(status.rows[ 0 ].user)
+  status.rows[ 0 ].forum = Number(status.rows[ 0 ].forum)
+  status.rows[ 0 ].thread = Number(status.rows[ 0 ].thread)
+  status.rows[ 0 ].post = Number(status.rows[ 0 ].post)
+  return status.rows[ 0 ]
+  
 }
 
 const DELETE = async () => {
@@ -27,7 +24,7 @@ const DELETE = async () => {
   TRUNCATE TABLE users, post, forum, thread, vote RESTART IDENTITY CASCADE`)
     await client.query(`DROP TABLE post`)
     await client.query(`
-    CREATE UNLOGGED TABLE post
+    CREATE TABLE post
 (
     id SERIAL,
     parent int default 0 NOT NULL,
@@ -44,10 +41,9 @@ const DELETE = async () => {
     await DB.query('VACUUM FULL')
   } catch ( e ) {
     await client.query('ROLLBACK')
-    console.log(e)
     throw e
   } finally {
-    client.release();
+    client.release()
   }
 }
 
@@ -56,4 +52,4 @@ export const SERVICE_MODEL = {
   DELETE,
 }
 
-export default SERVICE_MODEL;
+export default SERVICE_MODEL
