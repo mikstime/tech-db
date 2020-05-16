@@ -11,6 +11,7 @@ CREATE TABLE users
 --AVOID DUPLICATES, QUICK SEARCH AND JOIN(email not needed for search and join)
 CREATE UNIQUE INDEX user_email_lower_idx ON users USING btree(LOWER(email));
 CREATE UNIQUE INDEX user_nickname_lower_idx ON users USING btree(LOWER(nickname));
+CREATE INDEX user_nickname_lower_hash_idx ON users USING hash(LOWER(nickname));
 --Quick alphabet sort
 CREATE INDEX user_nickname ON users (nickname);
 CREATE TABLE forum
