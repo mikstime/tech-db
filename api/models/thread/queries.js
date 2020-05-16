@@ -53,7 +53,7 @@ GROUP BY thread.id`
 export const CREATE_VOTE_QUERY = (slug) =>
 `INSERT INTO vote
 SELECT thread.id AS thread_id, $1 as "user", $2 AS voice FROM thread
-JOIN users ON users.nickname=$1
+JOIN users ON LOWER(users.nickname)=LOWER($1)
 WHERE ${ isNaN(slug) ? 'LOWER(slug)' : 'id' }=${ isNaN(slug) ? 'LOWER($3)' : '$3' }
 RETURNING thread_id, "user"`
 
