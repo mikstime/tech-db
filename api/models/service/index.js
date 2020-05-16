@@ -22,34 +22,21 @@ const DELETE = async () => {
     await client.query('BEGIN')
     await client.query(`
   TRUNCATE TABLE users, post, forum, thread, vote RESTART IDENTITY CASCADE`)
-//     await client.query(`DROP TABLE post`)
-//     await client.query(`
-//     CREATE UNLOGGED TABLE post
-// (
-//     id SERIAL,
-//     parent int default 0 NOT NULL,
-//     author CITEXT COLLATE "C" NOT NULL,
-//     path ltree,
-//     "isEdited" BOOLEAN DEFAULT FALSE,
-//     message TEXT,
-//     forum CITEXT COLLATE "C" NOT NULL,
-//     "thread" int,
-//     created timestamp NOT NULL DEFAULT NOW()
-// ) PARTITION BY LIST(LOWER(forum))
-// `)
-//     await client.query('CREATE INDEX post_id_idx ON post USING btree(id)')
-//     await client.query('CREATE INDEX post_path_idx ON post USING gist(path)')
-//     await client.query('CREATE INDEX post_path_st_idx ON post USING gist(subpath(path,0, 1))')
-//     await client.query('CREATE INDEX post_path_st_path_idx ON post (subpath(path,0, 1), path)')
-//     await client.query('CREATE INDEX post_since_tree_idx ON post (thread, path)')
-//     await client.query('CREATE INDEX post_since_idx ON post (parent, thread, path)')
-//     await client.query('CREATE INDEX post_parent_idx ON post USING btree(parent)')
-//     await client.query('CREATE INDEX post_thread_idx ON post USING btree(thread)')
-//     await client.query('CREATE INDEX post_parent_thread_idx ON post USING btree(parent, thread)')
-//     await client.query('CREATE INDEX post_created_idx ON post USING btree(created)')
-//     await client.query('CREATE INDEX post_author_idx ON post USING btree(LOWER(author))')
-//     await client.query('CREATE INDEX post_forum_lower_idx ON post USING btree(LOWER(forum))')
-//     await client.query('CREATE INDEX post_author_forum ON post(LOWER(author), LOWER(forum))')
+    await client.query(`DROP TABLE post`)
+    await client.query(`
+    CREATE TABLE post
+(
+    id SERIAL,
+    parent int default 0 NOT NULL,
+    author CITEXT COLLATE "C" NOT NULL,
+    path ltree,
+    "isEdited" BOOLEAN DEFAULT FALSE,
+    message TEXT,
+    forum CITEXT COLLATE "C" NOT NULL,
+    "thread" int,
+    created timestamp NOT NULL DEFAULT NOW()
+) PARTITION BY LIST(LOWER(forum))
+`)
     await client.query('COMMIT')
     await DB.query('VACUUM FULL')
   } catch ( e ) {

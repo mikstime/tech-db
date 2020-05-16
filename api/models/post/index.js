@@ -81,7 +81,7 @@ const CREATE = async (posts, slug) => {
       await client.query('COMMIT')
       return []
     }
-    const TABLE_NAME = 'post'//`post_${ forum.toLowerCase() }`
+    const TABLE_NAME = `post_${ forum.toLowerCase() }`
     let l = 2
     const [ args, values ] = posts.reduce((acc, p, i) => {
       if ( acc[ 0 ].length > 2)
@@ -99,7 +99,7 @@ const CREATE = async (posts, slug) => {
             COALESCE(V.created::timestamptz,NOW()),
             text2ltree(COALESCE(post.path::text || '.', '') || LPAD(currval('post_id_seq')::text, 8, '0')) as path
     FROM (VALUES ${ values }) V(parent, author, message, created, ind)
-    LEFT JOIN post ON V.parent::int=post.id
+    LEFT JOIN post ON V.parent::int=post.id AND LOWER(post.forum)=LOWER($1)
     JOIN users ON LOWER(users.nickname)=LOWER(V.author)
     ORDER BY ind ASC
     )
@@ -133,7 +133,7 @@ const CREATE = async (posts, slug) => {
     await client.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [id])
     }
     await client.query('COMMIT')
-    return cposts.rows.map(c => {delete c.path; return c})
+    return cposts.rows//.map(c => {delete c.path; return c})
   } catch ( e ) {
     await client.query('ROLLBACK')
     throw e

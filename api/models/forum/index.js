@@ -38,38 +38,38 @@ const CREATE = async ({ user, title, slug }) => {
     //@TODO create post partition
     if ( !forum.rows.length )
       return null
-    // const tableName = `post_${ forum.rows[ 0 ].slug.toLowerCase() }`
-    // const x = await client.query(`
-    // CREATE UNLOGGED TABLE "${ tableName }" PARTITION OF post FOR VALUES IN ('${ forum.rows[ 0 ].slug.toLowerCase() }');
-    // `);
-    // await Promise.all(
-    //   [
-    //     client.query(`
-    // CREATE INDEX "${ tableName }_id_idx" ON "${ tableName }" USING btree(id);
-    // `), client.query(`
-    // CREATE INDEX "${ tableName }_path_idx" ON "${ tableName }" USING gist(path);
-    // `), client.query(`
-    // CREATE INDEX "${ tableName }_path_st_idx" ON "${ tableName }" USING gist(subpath(path,0, 1));
-    // `), client.query(`
-    // CREATE INDEX "${ tableName }_path_st_path_idx" ON "${ tableName }" (subpath(path,0, 1), path);
-    // `), client.query(`
-    // CREATE INDEX "${ tableName }_since_tree_idx" ON "${ tableName }" (thread, path);
-    // `), client.query(`
-    // CREATE INDEX "${ tableName }_since_idx" ON "${ tableName }" (parent, thread, path);
-    // `), client.query(`
-    // CREATE INDEX "${ tableName }_parent_idx" ON "${ tableName }" USING btree(parent);
-    // `), client.query(`
-    // CREATE INDEX "${ tableName }_thread_idx" ON "${ tableName }" USING btree(thread);
-    // `), client.query(`
-    // CREATE INDEX "${ tableName }_parent_thread_idx" ON "${ tableName }" USING btree(parent, thread);
-    // `), client.query(`
-    // CREATE INDEX "${ tableName }_created_idx" ON "${ tableName }" USING btree(created);
-    // `),
-    //     client.query(`
-    // CREATE INDEX "${ tableName }_author_idx" ON "${ tableName }" USING btree(LOWER(author));
-    // `)
-    //   ]
-    // )
+    const tableName = `post_${ forum.rows[ 0 ].slug.toLowerCase() }`
+    const x = await client.query(`
+    CREATE TABLE "${ tableName }" PARTITION OF post FOR VALUES IN ('${ forum.rows[ 0 ].slug.toLowerCase() }');
+    `);
+    await Promise.all(
+      [
+        client.query(`
+    CREATE INDEX "${ tableName }_id_idx" ON "${ tableName }" USING btree(id);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_path_idx" ON "${ tableName }" USING gist(path);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_path_st_idx" ON "${ tableName }" USING gist(subpath(path,0, 1));
+    `), client.query(`
+    CREATE INDEX "${ tableName }_path_st_path_idx" ON "${ tableName }" (subpath(path,0, 1), path);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_since_tree_idx" ON "${ tableName }" (thread, path);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_since_idx" ON "${ tableName }" (parent, thread, path);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_parent_idx" ON "${ tableName }" USING btree(parent);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_thread_idx" ON "${ tableName }" USING btree(thread);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_parent_thread_idx" ON "${ tableName }" USING btree(parent, thread);
+    `), client.query(`
+    CREATE INDEX "${ tableName }_created_idx" ON "${ tableName }" USING btree(created);
+    `),
+        client.query(`
+    CREATE INDEX "${ tableName }_author_idx" ON "${ tableName }" USING btree(LOWER(author));
+    `)
+      ]
+    )
     // await client.query(`
     // CREATE INDEX "${tableName}_forum_idx" ON "${tableName}" USING btree(LOWER(forum));
     // `)
