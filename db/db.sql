@@ -1,3 +1,5 @@
+SET synchronous_commit TO OFF;
+SET full_page_writes TO OFF;
 CREATE EXTENSION IF NOT EXISTS CITEXT;
 CREATE EXTENSION IF NOT EXISTS ltree;
 
@@ -92,7 +94,6 @@ CREATE TABLE vote
     voice int,
     created timestamptz DEFAULT NOW()
 );
---SET synchronous_commit TO OFF;
 CREATE INDEX vote_created_idx ON vote USING btree(created);
 CREATE INDEX vote_user_idx ON vote USING btree(LOWER("user"));
 CREATE INDEX vote_created_user_idx ON vote USING btree(LOWER("user"), created);
