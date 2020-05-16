@@ -26,7 +26,7 @@ CREATE TABLE forum
 --AVOID DUPLICATES, QUICK SEARCH AND JOIN
 --@TODO partition using functions add keys automatically
 CREATE UNIQUE INDEX forum_slug_lower_idx ON forum USING btree(LOWER(slug));
-CREATE INDEX forum_slug_lower_hash_idx ON forum USING btree(LOWER(slug));
+CREATE INDEX forum_slug_lower_hash_idx ON forum USING hash(LOWER(slug));
 CREATE TABLE thread
 (
     id SERIAL PRIMARY KEY,
@@ -43,8 +43,10 @@ CREATE TABLE thread
 );
 --AVOID DUPLICATES, QUICK SEARCH AND JOIN
 CREATE UNIQUE INDEX thread_slug_lower_idx ON thread USING btree(LOWER(slug));
+CREATE INDEX thread_slug_lower_hash_idx ON thread USING hash(LOWER(slug));
 --
 CREATE INDEX thread_id_idx ON thread USING btree(id);
+CREATE INDEX thread_id_hash_idx ON thread USING hash(id);
 CREATE INDEX thread_created_idx ON thread USING btree(created);
 --
 CREATE INDEX thread_forum_idx ON thread USING btree(LOWER(forum));
