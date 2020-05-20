@@ -80,3 +80,61 @@ SELECT SUM(selected.voice), TRUE FROM selected WHERE thread.id=$1)
 WHERE id=$1
 RETURNING id, title, author, forum, message, slug,
 created, posts, votes, votes_updated, posts_updated`
+
+/*
+INSERT INTO vote
+SELECT thread.id AS thread_id, 'ac.4Z58TvVPs5KlP1' as "user", 1 AS voice FROM thread
+JOIN users ON LOWER(users.nickname)=LOWER('ac.4Z58TvVPs5KlP1')
+WHERE thread.id=4003
+RETURNING thread_id, "user"
+ */
+/*
+WITH OLD_COUNT AS(
+SELECT posts FROM forum WHERE LOWER(slug)=LOWER('0hG54U-K9c3a8')
+)
+UPDATE forum SET
+posts = OLD_COUNT.posts + 1
+FROM OLD_COUNT
+WHERE LOWER(slug)=LOWER('0hG54U-K9c3a8')
+RETURNING forum.posts
+ */
+
+/*
+WITH selected AS (
+SELECT DISTINCT on (LOWER("user")) voice, created FROM vote WHERE thread_id=3043
+GROUP BY LOWER("user"), created, voice
+ORDER BY LOWER("user"), created DESC)
+UPDATE thread SET(votes, votes_updated) =
+(
+SELECT SUM(selected.voice), TRUE FROM selected WHERE thread.id=3043)
+WHERE id=3043
+RETURNING id, title, author, forum, message, slug,
+created, posts, votes, votes_updated, posts_updated
+ */
+
+/*
+WITH OLD_COUNT AS(
+SELECT posts FROM thread WHERE id=2832
+)
+UPDATE thread SET
+posts = OLD_COUNT.posts + 1
+FROM OLD_COUNT
+WHERE id=2832
+RETURNING thread.posts
+ */
+
+/*
+INSERT INTO post(id,parent, author, message, forum, thread, created, path)
+(SELECT nextval('post_id_seq'),
+COALESCE(V.parent::int, 0),
+V.author, V.message, $1 as forum,
+COALESCE(post.thread, $2::int),
+COALESCE(V.created::timestamptz,NOW()),
+text2ltree(COALESCE(post.path::text || '.', '') || LPAD(currval('post_id_seq')::text, 8, '0')) as path
+FROM (VALUES ${ values }) V(parent, author, message, created, ind)
+LEFT JOIN post ON V.parent::int=post.id AND LOWER(post.forum)=LOWER($1)
+JOIN users ON LOWER(users.nickname)=LOWER(V.author)
+ORDER BY ind ASC
+)
+RETURNING id, parent, author, message, forum, thread, created, path
+ */

@@ -263,3 +263,23 @@ export const POST_MODEL = {
 }
 
 export default POST_MODEL
+
+
+
+// `INSERT INTO "post_e4hlvxn0fc3mk2"(id,parent, author, message, forum, thread, created, path)
+// (SELECT nextval('post_id_seq'),
+//   COALESCE(V.parent::int, 0),
+//   V.author, V.message, 'E4HLVxN0Fc3MK2' as forum,
+// COALESCE(post.thread, 130::int),
+//   COALESCE(V.created::timestamptz,NOW()),
+// text2ltree(COALESCE(post.path::text || '.', '') || LPAD(currval('post_id_seq')::text, 8, '0')) as path
+// FROM (VALUES
+// (2005, 'una.cR23UuGGF599rd',   'Text1',null, 0),
+// (2004, 'una.cR23UuGGF599rd', 'Text2',null, 1),
+// (2006, 'una.cR23UuGGF599rd', 'Text3',null, 2),
+// (2004, 'una.cR23UuGGF599rd', 'Text4',null, 3)) V(parent, author, message, created, ind)
+// LEFT JOIN post ON V.parent::int=post.id AND LOWER(post.forum)=LOWER('E4HLVxN0Fc3MK2')
+// JOIN users ON LOWER(users.nickname)=LOWER(V.author)
+// ORDER BY ind ASC
+// )
+// RETURNING id, parent, author, message, forum, thread, created, path`

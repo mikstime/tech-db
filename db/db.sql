@@ -1,9 +1,11 @@
-SET synchronous_commit TO OFF;
-SET full_page_writes TO OFF;
+--SET synchronous_commit TO OFF;
+--SET full_page_writes TO OFF;
+--SET max_wal_size TO 2GB;
+--SET checkpoint_timeout TO 1000;
 CREATE EXTENSION IF NOT EXISTS CITEXT;
 CREATE EXTENSION IF NOT EXISTS ltree;
 
-CREATE TABLE users
+CREATE UNLOGGED TABLE users
 (
     nickname VARCHAR(50) UNIQUE PRIMARY KEY,
     fullname VARCHAR(50) NOT NULL,
@@ -16,7 +18,7 @@ CREATE UNIQUE INDEX user_nickname_lower_idx ON users USING btree(LOWER(nickname)
 CREATE INDEX user_nickname_lower_hash_idx ON users USING hash(LOWER(nickname));
 --Quick alphabet sort
 CREATE INDEX user_nickname ON users (nickname);
-CREATE TABLE forum
+CREATE UNLOGGED TABLE forum
 (
     slug VARCHAR(50) NOT NULL PRIMARY KEY,
     "user" CITEXT COLLATE "C" NOT NULL,
@@ -29,7 +31,7 @@ CREATE TABLE forum
 --@TODO partition using functions add keys automatically
 CREATE UNIQUE INDEX forum_slug_lower_idx ON forum USING btree(LOWER(slug));
 CREATE INDEX forum_slug_lower_hash_idx ON forum USING hash(LOWER(slug));
-CREATE TABLE thread
+CREATE UNLOGGED TABLE thread
 (
     id SERIAL PRIMARY KEY,
     title VARCHAR(100),
@@ -55,7 +57,7 @@ CREATE INDEX thread_forum_idx ON thread USING btree(LOWER(forum));
 CREATE INDEX thread_author_idx ON thread USING btree(LOWER(author));
 CREATE INDEX thread_author_forum_idx ON thread (LOWER(forum), LOWER(author));
 
-CREATE TABLE post
+CREATE UNLOGGED TABLE post
 (
     id SERIAL,
     parent int default 0 NOT NULL,
@@ -87,7 +89,7 @@ CREATE TABLE post
 --CREATE INDEX post_forum_lower_idx ON post USING btree(LOWER(forum));
 --CREATE INDEX post_author_forum ON post(LOWER(author), LOWER(forum)); --search users
 
-CREATE TABLE vote
+CREATE UNLOGGED TABLE vote
 (
     thread_id int,
     "user" CITEXT COLLATE "C" NOT NULL,
