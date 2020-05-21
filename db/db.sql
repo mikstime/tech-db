@@ -68,26 +68,26 @@ CREATE UNLOGGED TABLE post
     forum CITEXT COLLATE "C" NOT NULL,
     "thread" int,
     created timestamp NOT NULL DEFAULT NOW()
-) PARTITION BY LIST(LOWER(forum));
+); --PARTITION BY LIST(LOWER(forum));
 
---CREATE INDEX post_id_idx ON post USING btree(id);
-----
---CREATE INDEX post_path_idx ON post USING gist(path);
---CREATE INDEX post_path_st_idx ON post USING gist(subpath(path,0, 1)); --@TODO default path to avoid error (from 7s to 100ms)
---CREATE INDEX post_path_st_path_idx ON post (subpath(path,0, 1), path);
-----
---CREATE INDEX post_since_tree_idx ON post (thread, path);
---CREATE INDEX post_since_idx ON post (parent, thread, path);
-----
---CREATE INDEX post_parent_idx ON post USING btree(parent);
---CREATE INDEX post_thread_idx ON post USING btree(thread);
---CREATE INDEX post_parent_thread_idx ON post USING btree(parent, thread);
-----
---CREATE INDEX post_created_idx ON post USING btree(created);
-----
---CREATE INDEX post_author_idx ON post USING btree(LOWER(author));
---CREATE INDEX post_forum_lower_idx ON post USING btree(LOWER(forum));
---CREATE INDEX post_author_forum ON post(LOWER(author), LOWER(forum)); --search users
+CREATE INDEX post_id_idx ON post USING btree(id);
+--
+CREATE INDEX post_path_idx ON post USING gist(path);
+CREATE INDEX post_path_st_idx ON post USING gist(subpath(path,0, 1));
+CREATE INDEX post_path_st_path_idx ON post (subpath(path,0, 1), path);
+--
+CREATE INDEX post_since_tree_idx ON post (thread, path);
+CREATE INDEX post_since_idx ON post (parent, thread, path);
+--
+CREATE INDEX post_parent_idx ON post USING btree(parent);
+CREATE INDEX post_thread_idx ON post USING btree(thread);
+CREATE INDEX post_parent_thread_idx ON post USING btree(parent, thread);
+--
+CREATE INDEX post_created_idx ON post USING btree(created);
+--
+CREATE INDEX post_author_idx ON post USING btree(LOWER(author));
+CREATE INDEX post_forum_lower_idx ON post USING btree(LOWER(forum));
+CREATE INDEX post_author_forum ON post(LOWER(author), LOWER(forum)); --search users
 
 CREATE UNLOGGED TABLE vote
 (
