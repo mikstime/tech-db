@@ -136,7 +136,6 @@ const CREATE = async (posts, slug) => {
     await client.query('COMMIT')
     return cposts.rows//.map(c => {delete c.path; return c})
   } catch ( e ) {
-    console.log(e)
     await client.query('ROLLBACK')
     throw e
   } finally {
