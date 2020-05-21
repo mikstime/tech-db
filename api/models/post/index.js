@@ -99,7 +99,7 @@ const CREATE = async (posts, slug) => {
             COALESCE(V.created::timestamptz,NOW()),
             text2ltree(COALESCE(post.path::text || '.', '') || LPAD(currval('post_id_seq')::text, 8, '0')) as path
     FROM (VALUES ${ values }) V(parent, author, message, created, ind)
-    LEFT JOIN post ON V.parent::int=post.id AND LOWER(post.forum)=LOWER($1)
+    LEFT JOIN "${TABLE_NAME}" post ON V.parent::int=post.id AND LOWER(post.forum)=LOWER($1)
     JOIN users ON LOWER(users.nickname)=LOWER(V.author)
     ORDER BY ind ASC
     )
@@ -123,8 +123,9 @@ const CREATE = async (posts, slug) => {
 
     if(cposts.rows[cposts.rows.length -1].id === 1500000) {
       try {
-        await client.query(`UPDATE forum SET posts = (SELECT COUNT(*) FROM post WHERE LOWER(post.forum)=LOWER(forum.slug))`)//forum-posts
+        // await client.query(`UPDATE forum SET posts = (SELECT COUNT(*) FROM post WHERE LOWER(post.forum)=LOWER(forum.slug))`)//forum-posts
         await client.query(`UPDATE thread SET (posts, posts_updated) = (SELECT COUNT(*), TRUE FROM post WHERE post.thread=thread.id)`)//thread-posts
+        await client.query(`UPDATE forum SET posts = (SELECT SUM(thread.posts) FROM thread WHERE LOWER(thread.forum)=LOWER(forum.slug))`)
       } catch ( e ) {
         throw e;
       }
@@ -135,6 +136,7 @@ const CREATE = async (posts, slug) => {
     await client.query('COMMIT')
     return cposts.rows//.map(c => {delete c.path; return c})
   } catch ( e ) {
+    console.log(e)
     await client.query('ROLLBACK')
     throw e
   } finally {
@@ -266,7 +268,7 @@ export default POST_MODEL
 
 
 
-// `INSERT INTO "post_e4hlvxn0fc3mk2"(id,parent, author, message, forum, thread, created, path)
+// `INSERT INTO "post__69j6qb_wumas"(id,parent, author, message, forum, thread, created, path)
 // (SELECT nextval('post_id_seq'),
 //   COALESCE(V.parent::int, 0),
 //   V.author, V.message, 'E4HLVxN0Fc3MK2' as forum,
@@ -274,12 +276,16 @@ export default POST_MODEL
 //   COALESCE(V.created::timestamptz,NOW()),
 // text2ltree(COALESCE(post.path::text || '.', '') || LPAD(currval('post_id_seq')::text, 8, '0')) as path
 // FROM (VALUES
-// (2005, 'una.cR23UuGGF599rd',   'Text1',null, 0),
-// (2004, 'una.cR23UuGGF599rd', 'Text2',null, 1),
-// (2006, 'una.cR23UuGGF599rd', 'Text3',null, 2),
-// (2004, 'una.cR23UuGGF599rd', 'Text4',null, 3)) V(parent, author, message, created, ind)
-// LEFT JOIN post ON V.parent::int=post.id AND LOWER(post.forum)=LOWER('E4HLVxN0Fc3MK2')
+// (1456, 'intentum.xASKZWY088L3Rv',   'Text1',null, 0),
+// (1517, 'gavisum.78E9ZwByXXk3JS', 'Text2',null, 1),
+// (1520, 'lunam.0LylhWYA8XK37U', 'Text3',null, 2),
+// (1456, 'de.0Fs9hwya8tl979', 'Text4',null, 3)) V(parent, author, message, created, ind)
+// LEFT JOIN "post__69j6qb_wumas" post ON V.parent::int=post.id AND LOWER(post.forum)=LOWER('E4HLVxN0Fc3MK2')
 // JOIN users ON LOWER(users.nickname)=LOWER(V.author)
 // ORDER BY ind ASC
 // )
 // RETURNING id, parent, author, message, forum, thread, created, path`
+// 1456
+// 1517
+// 1520
+// 1522
