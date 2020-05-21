@@ -81,7 +81,7 @@ const CREATE = async (posts, slug) => {
       await client.query('COMMIT')
       return []
     }
-    const TABLE_NAME = `post_${ forum.toLowerCase() }`
+    const TABLE_NAME = "post"//`post_${ forum.toLowerCase() }`
     let l = 2
     const [ args, values ] = posts.reduce((acc, p, i) => {
       if ( acc[ 0 ].length > 2)
