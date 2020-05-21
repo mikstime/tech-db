@@ -65,7 +65,6 @@ const CREATE = async ({ title, author, message, slug, created }, forum) => {
     await client.query('COMMIT')
     return thread.rows[ 0 ]
   } catch ( e ) {
-    console.log(e)
     await client.query('ROLLBACK')
     throw e
   } finally {
@@ -110,7 +109,6 @@ RETURNING id, title, author, forum, message, slug, created
   `, args)
     return thread.rows[ 0 ]
   } catch ( e ) {
-    console.log(e)
     throw e
   }
 }
@@ -257,7 +255,6 @@ const CREATE_VOTE = async ({ nickname, voice }, slug) => {
     await client.query('COMMIT')
     return thread.rows[ 0 ]
   } catch ( e ) {
-    console.log(e)
     await client.query('ROLLBACK')
     throw e
   } finally {

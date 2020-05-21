@@ -91,7 +91,6 @@ const CREATE = async ({ user, title, slug }) => {
     await client.query('COMMIT')
     return forum.rows[ 0 ]
   } catch ( e ) {
-    console.log(e)
     await client.query('ROLLBACK')
     throw e
   } finally {
