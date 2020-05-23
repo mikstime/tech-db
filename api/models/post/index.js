@@ -120,19 +120,19 @@ const CREATE = async (posts, slug) => {
       }
     }
     lastId = cposts.rows[cposts.rows.length -1].id
-    if(lastId === 1500000) {
-      try {
-        await client.query(`UPDATE forum SET posts = (SELECT COUNT(*) FROM post WHERE LOWER(post.forum)=LOWER(forum.slug))`)//forum-posts
-        await client.query(`UPDATE thread SET (posts, posts_updated) = (SELECT COUNT(*), TRUE FROM post WHERE post.thread=thread.id)`)//thread-posts
-      } catch ( e ) {
-        throw e;
-      }
-    } else {
-      if(lastId < 10000) {
+    // if(lastId === 1500000) {
+    //   try {
+    //     DB.query(`UPDATE forum SET posts = (SELECT COUNT(*) FROM post WHERE LOWER(post.forum)=LOWER(forum.slug))`)//forum-posts
+    //     DB.query(`UPDATE thread SET (posts, posts_updated) = (SELECT COUNT(*), TRUE FROM post WHERE post.thread=thread.id)`)//thread-posts
+    //   } catch ( e ) {
+    //     throw e;
+    //   }
+    // } else {
+      // if(lastId < 10000) {
         await client.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [forum])
         await client.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [id])
-      }
-    }
+      // }
+    // }
     await client.query('COMMIT')
     return cposts.rows
   } catch ( e ) {
