@@ -115,7 +115,7 @@ const CREATE = async (posts, slug) => {
       await client.query(`UPDATE thread SET (posts, posts_updated) = (SELECT SUM(posts), TRUE FROM posts WHERE posts.thread=thread.id)`)//thread-posts
     } else {
       //forum, thread, posts
-      await client.query(`INSERT INTO posts ($1, $2, $3)`, [ forum, id, cposts.rows.length ])
+      await client.query(`INSERT INTO posts(forum, thread, posts) VALUES ($1, $2, $3)`, [ forum, id, cposts.rows.length ])
       if ( lastId < 10000 ) {
         await client.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [ forum ])
         await client.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [ id ])

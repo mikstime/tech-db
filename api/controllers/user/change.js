@@ -20,7 +20,6 @@ export default async (req, res) => {
       }
       res.status(200).send(user);
     } catch (e) {
-      console.log(e)
       res.status(409).send({ message: 'Email already exists' })
     }
     
