@@ -41,7 +41,7 @@ const CREATE = async ({ user, title, slug }) => {
     const tableName = `post_${ forum.rows[ 0 ].slug.toLowerCase() }`
     const x = await client.query(`
     CREATE UNLOGGED TABLE "${ tableName }" PARTITION OF post FOR VALUES IN ('${ forum.rows[ 0 ].slug.toLowerCase() }');
-    `);
+    `)
     await Promise.all(
       [
         client.query(`
@@ -58,11 +58,7 @@ const CREATE = async ({ user, title, slug }) => {
     CREATE INDEX "${ tableName }_since_idx" ON "${ tableName }" (parent, thread, path);
     `), client.query(`
     CREATE INDEX "${ tableName }_parent_idx" ON "${ tableName }" USING btree(parent);
-    `),
-        client.query(`
-    CREATE INDEX "${ tableName }_path_id_idx" ON "${ tableName }" USING btree(path);
-    `),
-        client.query(`
+    `), client.query(`
         CREATE INDEX "${ tableName }_parent_hash_idx" ON "${ tableName }" USING hash(parent);
     `), client.query(`
     CREATE INDEX "${ tableName }_thread_idx" ON "${ tableName }" USING btree(thread);
