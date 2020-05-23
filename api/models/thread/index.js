@@ -40,7 +40,7 @@ const validAny = thread => {
   
   return true
 }
-
+let lastId;
 const CREATE = async ({ title, author, message, slug, created }, forum) => {
   const client = await DB.connect()
   try {
@@ -55,12 +55,14 @@ const CREATE = async ({ title, author, message, slug, created }, forum) => {
     if ( !thread.rows[ 0 ].slug )
       delete thread.rows[ 0 ].slug
     
-    if(thread.rows[0].id === 10000) {
+    lastId = thread.rows[0].id
+    if( lastId === 10000) {
       setTimeout(async () => {
         await DB.query(`UPDATE forum SET (threads, threads_updated) = (SELECT COUNT(*), TRUE FROM thread WHERE LOWER(thread.forum)=LOWER(forum.slug)) RETURNING threads, slug`)
       }, 1000)
     } else {
-      await client.query(FAKE_UPDATE_THREADS_GET_FORUM_QUERY, [ forum ])
+      if(lastId < 1000)
+        await client.query(FAKE_UPDATE_THREADS_GET_FORUM_QUERY, [ forum ])
     }
     await client.query('COMMIT')
     return thread.rows[ 0 ]

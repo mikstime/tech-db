@@ -128,11 +128,13 @@ const CREATE = async (posts, slug) => {
         throw e;
       }
     } else {
-    await client.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [forum])
-    await client.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [id])
+      if(lastId < 10000) {
+        await client.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [forum])
+        await client.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [id])
+      }
     }
     await client.query('COMMIT')
-    return cposts.rows//.map(c => {delete c.path; return c})
+    return cposts.rows
   } catch ( e ) {
     await client.query('ROLLBACK')
     throw e
