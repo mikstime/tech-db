@@ -30,8 +30,8 @@ RUN echo "max_connections = 100" >> /etc/postgresql/$PGVER/main/postgresql.conf
 #RUN echo "work_mem = 8MB" >> /etc/postgresql/$PGVER/main/postgresql.conf
 #RUN echo "maintenance_work_mem = 128MB" >> /etc/postgresql/$PGVER/main/postgresql.conf
 #RUN echo "wal_buffers = 1MB" >> /etc/postgresql/$PGVER/main/postgresql.conf
-#RUN echo "effective_cache_size = 1536MB" >> /etc/postgresql/$PGVER/main/postgresql.conf
-RUN echo "listen_addresses='*'\nsynchronous_commit = off\nfsync = off\nshared_buffers = 400MB\nwal_writer_delay = 10000ms" >> /etc/postgresql/$PGVER/main/postgresql.conf
+RUN echo "effective_cache_size = 1536MB" >> /etc/postgresql/$PGVER/main/postgresql.conf
+RUN echo "listen_addresses='*'\nsynchronous_commit = off\nfsync = off\nshared_buffers = 512MB\nwal_writer_delay = 10000ms" >> /etc/postgresql/$PGVER/main/postgresql.conf
 # And add ``listen_addresses`` to ``/etc/postgresql/$PGVER/main/postgresql.conf``
 #RUN echo "listen_addresses='*'" >> /etc/postgresql/$PGVER/main/postgresql.conf
 
