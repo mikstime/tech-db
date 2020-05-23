@@ -22,21 +22,21 @@ const DELETE = async () => {
     await client.query('BEGIN')
     await client.query(`
   TRUNCATE TABLE users, post, forum, thread, vote RESTART IDENTITY CASCADE`)
-//     await client.query(`DROP TABLE post`)
-//     await client.query(`
-//     CREATE UNLOGGED TABLE post
-// (
-//     id SERIAL,
-//     parent int default 0 NOT NULL,
-//     author CITEXT COLLATE "C" NOT NULL,
-//     path ltree,
-//     "isEdited" BOOLEAN DEFAULT FALSE,
-//     message TEXT,
-//     forum CITEXT COLLATE "C" NOT NULL,
-//     "thread" int,
-//     created timestamp NOT NULL DEFAULT NOW()
-// ) PARTITION BY LIST(LOWER(forum))
-// `)
+    await client.query(`DROP TABLE post`)
+    await client.query(`
+    CREATE UNLOGGED TABLE post
+(
+    id SERIAL,
+    parent int default 0 NOT NULL,
+    author CITEXT COLLATE "C" NOT NULL,
+    path ltree,
+    "isEdited" BOOLEAN DEFAULT FALSE,
+    message TEXT,
+    forum CITEXT COLLATE "C" NOT NULL,
+    "thread" int,
+    created timestamp NOT NULL DEFAULT NOW()
+) PARTITION BY LIST(LOWER(forum))
+`)
     await client.query('COMMIT')
     await DB.query('VACUUM FULL')
   } catch ( e ) {

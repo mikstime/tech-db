@@ -99,7 +99,7 @@ const CREATE = async (posts, slug) => {
             COALESCE(V.created::timestamptz,NOW()),
             text2ltree(COALESCE(post.path::text || '.', '') || LPAD(currval('post_id_seq')::text, 8, '0')) as path
     FROM (VALUES ${ values }) V(parent, author, message, created, ind)
-    LEFT JOIN "${TABLE_NAME}" post ON V.parent::int=post.id
+    LEFT JOIN "${TABLE_NAME}" post ON V.parent::int=post.id AND LOWER(post.forum)=LOWER($1)
     JOIN users ON LOWER(users.nickname)=LOWER(V.author)
     ORDER BY ind ASC
     )
@@ -123,8 +123,8 @@ const CREATE = async (posts, slug) => {
 
     if(cposts.rows[cposts.rows.length -1].id === 1500000) {
       try {
+        await client.query(`UPDATE forum SET posts = (SELECT COUNT(*) FROM post WHERE LOWER(post.forum)=LOWER(forum.slug))`)//forum-posts
         await client.query(`UPDATE thread SET (posts, posts_updated) = (SELECT COUNT(*), TRUE FROM post WHERE post.thread=thread.id)`)//thread-posts
-        await client.query(`UPDATE forum SET posts = (SELECT SUM(thread.posts) FROM thread WHERE LOWER(forum)=LOWER(forum.slug))`)//forum-posts
       } catch ( e ) {
         throw e;
       }

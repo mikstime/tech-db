@@ -65,6 +65,7 @@ const CREATE = async ({ title, author, message, slug, created }, forum) => {
     await client.query('COMMIT')
     return thread.rows[ 0 ]
   } catch ( e ) {
+    console.log(e)
     await client.query('ROLLBACK')
     throw e
   } finally {
@@ -109,6 +110,7 @@ RETURNING id, title, author, forum, message, slug, created
   `, args)
     return thread.rows[ 0 ]
   } catch ( e ) {
+    console.log(e)
     throw e
   }
 }
@@ -169,7 +171,7 @@ const GET_POSTS = async (slug, query) => {
     
     const SINCE = Number(query.since) ? `AND post.id > ${ query.since }` : ''
     
-    const TABLE_NAME = "post"//`"post_${threadForum.toLowerCase()}"`
+    const TABLE_NAME = `"post_${threadForum.toLowerCase()}"`
     if ( query.sort === 'flat' ) {
       const SINCE = Number(query.since) ? `AND post.id ${ ORDER_TYPE === 'DESC' ? '<' : '>' } ${ query.since }` : ''
       //  parent, author, message, forum, thread, created,
@@ -255,6 +257,7 @@ const CREATE_VOTE = async ({ nickname, voice }, slug) => {
     await client.query('COMMIT')
     return thread.rows[ 0 ]
   } catch ( e ) {
+    console.log(e)
     await client.query('ROLLBACK')
     throw e
   } finally {

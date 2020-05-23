@@ -41,7 +41,7 @@ const CREATE = async ({ user, title, slug }) => {
     const tableName = `post_${ forum.rows[ 0 ].slug.toLowerCase() }`
     const x = await client.query(`
     CREATE UNLOGGED TABLE "${ tableName }" PARTITION OF post FOR VALUES IN ('${ forum.rows[ 0 ].slug.toLowerCase() }');
-    `)
+    `);
     await Promise.all(
       [
         client.query(`
@@ -69,16 +69,7 @@ const CREATE = async ({ user, title, slug }) => {
     `),
         client.query(`
     CREATE INDEX "${ tableName }_author_idx" ON "${ tableName }" USING btree(LOWER(author));
-    `),
-        client.query(`
-    CREATE INDEX "${ tableName }_forum_idx" ON "${ tableName }" USING btree(LOWER(forum));
-    `),
-        client.query(`
-    CREATE INDEX "${ tableName }_author_forum_idx" ON "${ tableName }" (LOWER(forum), LOWER(author));
-    `),
-        client.query(`
-    CREATE INDEX "${ tableName }_forum_hash_idx" ON "${ tableName }" USING hash(LOWER(forum));
-    `),
+    `)
       ]
     )
     // await client.query(`
@@ -91,6 +82,7 @@ const CREATE = async ({ user, title, slug }) => {
     await client.query('COMMIT')
     return forum.rows[ 0 ]
   } catch ( e ) {
+    console.log(e)
     await client.query('ROLLBACK')
     throw e
   } finally {
