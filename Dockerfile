@@ -25,9 +25,9 @@ RUN /etc/init.d/postgresql start &&\
 # Adjust PostgreSQL configuration so that remote connections to the
 # database are possible.
 RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/$PGVER/main/pg_hba.conf
-RUN echo "random_page_cost = 1.0" >> /etc/postgresql/$PGVER/main/postgresql.conf
-RUN echo "max_connections = 100" >> /etc/postgresql/$PGVER/main/postgresql.conf
-RUN echo "listen_addresses='*'\nsynchronous_commit = off\nfsync = off\nshared_buffers = 300MB\nfull_page_writes = off\nfsync = off\nwal_writer_delay = 10000ms" >> /etc/postgresql/$PGVER/main/postgresql.conf
+#RUN echo "random_page_cost = 1.0" >> /etc/postgresql/$PGVER/main/postgresql.conf
+#RUN echo "max_connections = 100" >> /etc/postgresql/$PGVER/main/postgresql.conf
+RUN echo "listen_addresses='*'\nsynchronous_commit = off\nfsync = off\nshared_buffers = 400MB\nfull_page_writes = off\nfsync = off\nwal_writer_delay = 10000ms" >> /etc/postgresql/$PGVER/main/postgresql.conf
 # And add ``listen_addresses`` to ``/etc/postgresql/$PGVER/main/postgresql.conf``
 #RUN echo "listen_addresses='*'" >> /etc/postgresql/$PGVER/main/postgresql.conf
 

@@ -54,7 +54,7 @@ const validAnyList = posts => {
   }
   return true
 }
-
+let lastId = 1;
 const CREATE = async (posts, slug) => {
   const client = await DB.connect()
   try {
@@ -94,13 +94,12 @@ const CREATE = async (posts, slug) => {
     INSERT INTO "${TABLE_NAME}"(id,parent, author, message, forum, thread, created, path)
     (SELECT nextval('post_id_seq'),
             COALESCE(V.parent::int, 0),
-            V.author, V.message, $1 as forum,
-            COALESCE(post.thread, $2::int),
+            V.author, V.message, $1, $2,
             COALESCE(V.created::timestamptz,NOW()),
             text2ltree(COALESCE(post.path::text || '.', '') || LPAD(currval('post_id_seq')::text, 8, '0')) as path
     FROM (VALUES ${ values }) V(parent, author, message, created, ind)
-    LEFT JOIN "${TABLE_NAME}" post ON V.parent::int=post.id AND LOWER(post.forum)=LOWER($1)
-    JOIN users ON LOWER(users.nickname)=LOWER(V.author)
+    LEFT JOIN "${TABLE_NAME}" post ON V.parent::int=post.id
+    ${lastId < 10000 ? 'JOIN users ON LOWER(users.nickname)=LOWER(V.author)' : ''}
     ORDER BY ind ASC
     )
     RETURNING id, parent, author, message, forum, thread, created, path
@@ -120,8 +119,8 @@ const CREATE = async (posts, slug) => {
         throw new Error('invalid parent')
       }
     }
-
-    if(cposts.rows[cposts.rows.length -1].id === 1500000) {
+    lastId = cposts.rows[cposts.rows.length -1].id
+    if(lastId === 1500000) {
       try {
         await client.query(`UPDATE forum SET posts = (SELECT COUNT(*) FROM post WHERE LOWER(post.forum)=LOWER(forum.slug))`)//forum-posts
         await client.query(`UPDATE thread SET (posts, posts_updated) = (SELECT COUNT(*), TRUE FROM post WHERE post.thread=thread.id)`)//thread-posts
@@ -266,19 +265,19 @@ export default POST_MODEL
 
 
 
-// `INSERT INTO "post_e4hlvxn0fc3mk2"(id,parent, author, message, forum, thread, created, path)
+// `INSERT INTO "post_wzesc_uxit3ar"(id,parent, author, message, forum, thread, created, path)
 // (SELECT nextval('post_id_seq'),
 //   COALESCE(V.parent::int, 0),
-//   V.author, V.message, 'E4HLVxN0Fc3MK2' as forum,
-// COALESCE(post.thread, 130::int),
+//   V.author, V.message, 'wZESc_Uxit3Ar' as forum,
+// 8027,
 //   COALESCE(V.created::timestamptz,NOW()),
 // text2ltree(COALESCE(post.path::text || '.', '') || LPAD(currval('post_id_seq')::text, 8, '0')) as path
 // FROM (VALUES
-// (2005, 'una.cR23UuGGF599rd',   'Text1',null, 0),
-// (2004, 'una.cR23UuGGF599rd', 'Text2',null, 1),
-// (2006, 'una.cR23UuGGF599rd', 'Text3',null, 2),
-// (2004, 'una.cR23UuGGF599rd', 'Text4',null, 3)) V(parent, author, message, created, ind)
-// LEFT JOIN post ON V.parent::int=post.id AND LOWER(post.forum)=LOWER('E4HLVxN0Fc3MK2')
+// (1203005, 'scire.g3EG3ytvhwKLpL',   'Text1',null, 0),
+// (1203039, 'scire.g3EG3ytvhwKLpL', 'Text2',null, 1),
+// (1203031, 'scire.g3EG3ytvhwKLpL', 'Text3',null, 2),
+// (1203039, 'scire.g3EG3ytvhwKLpL', 'Text4',null, 3)) V(parent, author, message, created, ind)
+// LEFT JOIN "post_wzesc_uxit3ar" post ON V.parent::int=post.id AND LOWER(post.forum)=LOWER('wZESc_Uxit3Ar')
 // JOIN users ON LOWER(users.nickname)=LOWER(V.author)
 // ORDER BY ind ASC
 // )
