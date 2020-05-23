@@ -101,3 +101,12 @@ CREATE INDEX vote_user_idx ON vote USING btree(LOWER("user"));
 CREATE INDEX vote_created_user_idx ON vote USING btree(LOWER("user"), created);
 CREATE INDEX vote_thread_id_idx ON vote USING btree(thread_id);
 CREATE INDEX vote_all ON vote (LOWER("user"), created, thread_id);
+
+CREATE UNLOGGED TABLE posts
+(
+    forum CITEXT COLLATE "C" NOT NULL,
+    thread int,
+    posts int
+);
+CREATE INDEX posts_forum_idx ON posts USING hash(LOWER(forum));
+CREATE INDEX posts_thread_idx ON posts USING hash(thread);

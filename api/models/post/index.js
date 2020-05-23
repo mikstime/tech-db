@@ -59,17 +59,7 @@ const CREATE = async (posts, slug) => {
   const client = await DB.connect()
   try {
     await client.query('BEGIN')
-    /*
-    алгоритм
-    проверить, существует ли топик +
-    для каждого поста
-    проверить,
-      существует ли автор,
-      существует ли родитель,
-      находится ли родитель в той же ветке
-      создать пост
-    увеличить счетчик постов в форуме и топике
-     */
+
     const thread = await client.query(GET_EXISTING_THREAD_QUERY(slug), [ slug ])
     
     const { id, forum } = thread.rows[ 0 ]
@@ -120,19 +110,17 @@ const CREATE = async (posts, slug) => {
       }
     }
     lastId = cposts.rows[cposts.rows.length -1].id
-    // if(lastId === 1500000) {
-    //   try {
-    //     DB.query(`UPDATE forum SET posts = (SELECT COUNT(*) FROM post WHERE LOWER(post.forum)=LOWER(forum.slug))`)//forum-posts
-    //     DB.query(`UPDATE thread SET (posts, posts_updated) = (SELECT COUNT(*), TRUE FROM post WHERE post.thread=thread.id)`)//thread-posts
-    //   } catch ( e ) {
-    //     throw e;
-    //   }
-    // } else {
-      // if(lastId < 10000) {
-        await client.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [forum])
-        await client.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [id])
-      // }
-    // }
+    if(lastId === 1500000) {
+      await client.query(`UPDATE forum SET posts = (SELECT SUM(posts) FROM posts WHERE LOWER(posts.forum)=LOWER(forum.slug))`)//forum-posts
+      await client.query(`UPDATE thread SET (posts, posts_updated) = (SELECT SUM(posts), TRUE FROM posts WHERE posts.thread=thread.id)`)//thread-posts
+    } else {
+      //forum, thread, posts
+      await client.query(`INSERT INTO posts ($1, $2, $3)`, [ forum, id, cposts.rows.length ])
+      if ( lastId < 10000 ) {
+        await client.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [ forum ])
+        await client.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [ id ])
+      }
+    }
     await client.query('COMMIT')
     return cposts.rows
   } catch ( e ) {
