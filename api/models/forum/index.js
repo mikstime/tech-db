@@ -51,7 +51,7 @@ const CREATE = async ({ user, title, slug }) => {
     CREATE INDEX "${ tableName }_path_idx" ON "${ tableName }" USING gist(path);
     `),
         client.query(`
-    CREATE INDEX "${ tableName }_path_idx" ON "${ tableName }" USING btree(path);
+    CREATE INDEX "${ tableName }_path_btree_idx" ON "${ tableName }" USING btree(path);
     `),
         client.query(`
     CREATE INDEX "${ tableName }_path_st_idx" ON "${ tableName }" USING gist(subpath(path,0, 1));
