@@ -77,6 +77,9 @@ const CREATE = async ({ user, title, slug }) => {
         client.query(`
     CREATE INDEX "${ tableName }_parent_thread_idx" ON "${ tableName }" USING btree(parent, thread);
     `),
+        client.query(`
+    CREATE INDEX "${ tableName }_thread_path_idx" ON "${ tableName }" USING btree(thread, path);
+    `),//speeds up tree sort
     //     client.query(`
     // CREATE INDEX "${ tableName }_created_idx" ON "${ tableName }" USING btree(created);
     // `),
