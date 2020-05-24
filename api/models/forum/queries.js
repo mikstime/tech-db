@@ -12,7 +12,7 @@ WHERE LOWER(slug)=LOWER($1)`
 export const GET_QUERY =
 `SELECT "user", title, slug, threads, posts
 FROM forum
-WHERE LOWER(forum.slug)=LOWER($1)`
+WHERE LOWER(forum.slug)=LOWER($1) LIMIT 1`
 
 export const GET_USERS_QUERY = (query) => {
   const ORDER_TYPE = 'desc' in query ?

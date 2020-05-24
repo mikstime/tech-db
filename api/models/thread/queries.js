@@ -42,13 +42,13 @@ RETURNING thread.posts`
 
 export const GET_EXISTING_QUERY = slug =>
 `SELECT id, title, author, forum, message, slug, created
-FROM thread WHERE ${isNaN(slug) ? 'LOWER(slug)=LOWER($1)' : 'id=$1'}`
+FROM thread WHERE ${isNaN(slug) ? 'LOWER(slug)=LOWER($1)' : 'id=$1'} LIMIT 1`
 
 export const GET_QUERY = slug =>
 `SELECT id, title, author, forum, message, slug, created, posts, votes, votes_updated, posts_updated
 FROM thread
 WHERE ${ isNaN(slug) ? 'LOWER(slug)=LOWER($1)' : 'id=$1' }
-GROUP BY thread.id`
+GROUP BY thread.id LIMIT 1`
 
 export const CREATE_VOTE_QUERY = (slug) =>
 `INSERT INTO vote
