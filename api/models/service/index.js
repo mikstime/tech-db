@@ -21,7 +21,7 @@ const DELETE = async () => {
   try {
     await client.query('BEGIN')
     await client.query(`
-  TRUNCATE TABLE users, post, forum, thread, vote RESTART IDENTITY CASCADE`)
+  TRUNCATE TABLE users, post, forum, thread, vote, posts, forum_users RESTART IDENTITY CASCADE`)
     await client.query(`DROP TABLE post`)
     await client.query(`
     CREATE UNLOGGED TABLE post

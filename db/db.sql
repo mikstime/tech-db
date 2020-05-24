@@ -110,3 +110,11 @@ CREATE UNLOGGED TABLE posts
 );
 CREATE INDEX posts_forum_idx ON posts USING hash(LOWER(forum));
 CREATE INDEX posts_thread_idx ON posts USING hash(thread);
+
+CREATE UNLOGGED TABLE forum_users
+(
+    forum CITEXT COLLATE "C" NOT NULL,
+    nickname VARCHAR(50)
+);
+CREATE UNIQUE INDEX forum_users_forum_nickname ON forum_users (LOWER(forum), LOWER(nickname));
+CREATE INDEX forum_users_forum ON forum_users USING hash(LOWER(forum));

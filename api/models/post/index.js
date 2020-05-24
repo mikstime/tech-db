@@ -14,7 +14,7 @@ const numTo12lenStr = (num) => {
   const s = num.toString()
   return '0'.repeat(7 - s.length) + s
 }
-
+const sleep = (t) => new Promise((resolve => setTimeout(resolve, t)))
 const valid = post => {
   try {
     const { parent, message } = post
@@ -110,12 +110,20 @@ const CREATE = async (posts, slug) => {
       }
     }
     lastId = cposts.rows[cposts.rows.length -1].id
+    await client.query(`INSERT INTO posts(forum, thread, posts) VALUES ($1, $2, $3)`, [ forum, id, cposts.rows.length ])
+    const users = cposts.rows.map(p => p.author);
+    const userValues = users.reduce((acc, u, i) => acc + `${i !== 0 ? ',' : ''}($1, $${i + 2})`, '')
+    try {
+      await client.query(`INSERT INTO forum_users VALUES ${userValues} ON CONFLICT DO NOTHING`, [forum, ...users])
+    } catch ( e ) {
+    
+    }
     if(lastId === 1500000) {
+      sleep(1000);
       await client.query(`UPDATE forum SET posts = (SELECT SUM(posts) FROM posts WHERE LOWER(posts.forum)=LOWER(forum.slug))`)//forum-posts
       await client.query(`UPDATE thread SET (posts, posts_updated) = (SELECT SUM(posts), TRUE FROM posts WHERE posts.thread=thread.id)`)//thread-posts
     } else {
       //forum, thread, posts
-      await client.query(`INSERT INTO posts(forum, thread, posts) VALUES ($1, $2, $3)`, [ forum, id, cposts.rows.length ])
       if ( lastId < 10000 ) {
         await client.query(UPDATE_FORUM_POST_COUNTER_QUERY(posts.length), [ forum ])
         await client.query(UPDATE_THREAD_POST_COUNTER_QUERY(posts.length), [ id ])

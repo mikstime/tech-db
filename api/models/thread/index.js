@@ -54,7 +54,8 @@ const CREATE = async ({ title, author, message, slug, created }, forum) => {
     }
     if ( !thread.rows[ 0 ].slug )
       delete thread.rows[ 0 ].slug
-    
+  
+    await client.query(`INSERT INTO forum_users VALUES ($1, $2) ON CONFLICT DO NOTHING`, [forum, author])
     lastId = thread.rows[0].id
     if( lastId === 10000) {
       setTimeout(async () => {
