@@ -15,7 +15,6 @@ export default async (req, res) => {
     res.status(200).send(forum)
   } catch (e) {
     // something wrong
-    console.log(e)
     res.status(500).send({ message: 'Unable to get forum details' })
   }
   

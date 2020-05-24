@@ -68,7 +68,6 @@ const CREATE = async ({ title, author, message, slug, created }, forum) => {
     await client.query('COMMIT')
     return thread.rows[ 0 ]
   } catch ( e ) {
-    console.log(e)
     await client.query('ROLLBACK')
     throw e
   } finally {
@@ -113,11 +112,9 @@ RETURNING id, title, author, forum, message, slug, created
   `, args)
     return thread.rows[ 0 ]
   } catch ( e ) {
-    console.log(e)
     throw e
   }
 }
-//@TODO индекс vote_thread_id_idx
 const GET = async (slug) => {
   let thread = await DB.query(GET_QUERY(slug), [ slug ])
   if ( !thread.rows[ 0 ] )
@@ -260,7 +257,6 @@ const CREATE_VOTE = async ({ nickname, voice }, slug) => {
     await client.query('COMMIT')
     return thread.rows[ 0 ]
   } catch ( e ) {
-    console.log(e)
     await client.query('ROLLBACK')
     throw e
   } finally {
@@ -281,3 +277,14 @@ export const THREAD_MODEL = {
 }
 
 export default THREAD_MODEL
+/*
+WITH tree AS (
+  SELECT subpath(path, 0, 1) as st FROM "post_mx31h4ukaz3ar" post
+  WHERE thread=5001 AND parent = 0
+  ORDER BY path DESC LIMIT 17
+)
+SELECT post.id, post.parent, post.author,
+post.message, post.forum, post.thread, post.created FROM tree
+JOIN "post_mx31h4ukaz3ar" post ON tree.st = subpath(post.path, 0, 1)
+ORDER BY st DESC, post.path ASC
+ */

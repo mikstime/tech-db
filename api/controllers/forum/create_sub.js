@@ -25,7 +25,6 @@ export default async (req, res) => {
         }
         res.status(409).send(thread)
       } catch ( e ) {
-        console.log(e)
         res.status(500).send({message: 'Unable to create thread'})
       }
     }

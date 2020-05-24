@@ -12,8 +12,11 @@ import THREAD_ROUTES from './api/routes/thread'
 const app = express();
 import  './api/models'
 
-// app.use(logger('dev'))
+app.use(logger('dev', {
+  skip: function (req, res) {return req.method !== 'GET' }
+}))
 app.use(express.json())
+
 app.use(express.urlencoded({ extended: false }))
 
 app.use('/api/user/', USER_ROUTES)
