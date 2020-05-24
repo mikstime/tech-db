@@ -62,18 +62,18 @@ const CREATE = async ({ user, title, slug }) => {
         client.query(`
     CREATE INDEX "${ tableName }_since_idx" ON "${ tableName }" (thread, parent, path);
     `),
-    //     client.query(`
-    // CREATE INDEX "${ tableName }_parent_idx" ON "${ tableName }" USING btree(parent);
-    // `),
+        client.query(`
+    CREATE INDEX "${ tableName }_parent_idx" ON "${ tableName }" USING btree(parent);
+    `),
         client.query(`
         CREATE INDEX "${ tableName }_parent_hash_idx" ON "${ tableName }" USING hash(parent);
     `),
         client.query(`
     CREATE INDEX "${ tableName }_thread_idx" ON "${ tableName }" USING btree(thread);
     `),
-    //     client.query(`
-    // CREATE INDEX "${ tableName }_parent_thread_idx" ON "${ tableName }" USING btree(parent, thread);
-    // `),
+        client.query(`
+    CREATE INDEX "${ tableName }_parent_thread_idx" ON "${ tableName }" USING btree(parent, thread);
+    `),
     //     client.query(`
     // CREATE INDEX "${ tableName }_created_idx" ON "${ tableName }" USING btree(created);
     // `),
@@ -82,12 +82,6 @@ const CREATE = async ({ user, title, slug }) => {
     `)
       ]
     )
-    // await client.query(`
-    // CREATE INDEX "${tableName}_forum_idx" ON "${tableName}" USING btree(LOWER(forum));
-    // `)
-    // await client.query(`
-    // CREATE INDEX "${tableName}_author_forum_idx" ON "${tableName}" (LOWER(forum), LOWER(author));
-    // `)
     
     await client.query('COMMIT')
     return forum.rows[ 0 ]
