@@ -12,7 +12,7 @@ import THREAD_ROUTES from './api/routes/thread'
 const app = express();
 import  './api/models'
 
-// app.use(logger('dev'))
+app.use(logger('dev'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 

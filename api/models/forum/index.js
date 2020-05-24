@@ -65,9 +65,9 @@ const CREATE = async ({ user, title, slug }) => {
     //     client.query(`
     // CREATE INDEX "${ tableName }_parent_idx" ON "${ tableName }" USING btree(parent);
     // `),
-    //     client.query(`
-    //     CREATE INDEX "${ tableName }_parent_hash_idx" ON "${ tableName }" USING hash(parent);
-    // `),
+        client.query(`
+        CREATE INDEX "${ tableName }_parent_hash_idx" ON "${ tableName }" USING hash(parent);
+    `),
         client.query(`
     CREATE INDEX "${ tableName }_thread_idx" ON "${ tableName }" USING btree(thread);
     `),
