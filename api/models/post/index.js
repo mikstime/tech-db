@@ -114,7 +114,7 @@ const CREATE = async (posts, slug) => {
     const users = cposts.rows.map(p => p.author);
     const userValues = users.reduce((acc, u, i) => acc + `${i !== 0 ? ',' : ''}($1, $${i + 2})`, '')
     try {
-      await client.query(`INSERT INTO forum_users VALUES ${userValues} ON CONFLICT DO NOTHING`, [forum, ...users])
+      await DB.query(`INSERT INTO forum_users VALUES ${userValues} ON CONFLICT DO NOTHING`, [forum, ...users])
     } catch ( e ) {
     
     }
