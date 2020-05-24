@@ -47,12 +47,12 @@ const CREATE = async ({ user, title, slug }) => {
         client.query(`
     CREATE INDEX "${ tableName }_id_idx" ON "${ tableName }" USING btree(id);
     `),
-    //     client.query(`
-    // CREATE INDEX "${ tableName }_path_idx" ON "${ tableName }" USING gist(path);
-    // `),
-    //     client.query(`
-    // CREATE INDEX "${ tableName }_path_st_idx" ON "${ tableName }" USING gist(subpath(path,0, 1));
-    // `),
+        client.query(`
+    CREATE INDEX "${ tableName }_path_idx" ON "${ tableName }" USING gist(path);
+    `),
+        client.query(`
+    CREATE INDEX "${ tableName }_path_st_idx" ON "${ tableName }" USING gist(subpath(path,0, 1));
+    `),
     //     client.query(`
     // CREATE INDEX "${ tableName }_path_st_path_idx" ON "${ tableName }" (subpath(path,0, 1), path);
     // `),

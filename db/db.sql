@@ -17,7 +17,7 @@ CREATE UNIQUE INDEX user_email_lower_idx ON users USING btree(LOWER(email));
 CREATE UNIQUE INDEX user_nickname_lower_idx ON users USING btree(LOWER(nickname));
 CREATE INDEX user_nickname_lower_hash_idx ON users USING hash(LOWER(nickname));
 --Quick alphabet sort
-CREATE INDEX user_nickname ON users (nickname);
+--CREATE INDEX user_nickname ON users (nickname);
 CREATE UNLOGGED TABLE forum
 (
     slug VARCHAR(50) NOT NULL PRIMARY KEY,
