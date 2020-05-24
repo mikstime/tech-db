@@ -189,7 +189,7 @@ const GET_POSTS = async (slug, query) => {
       let SINCE = ''
       if ( query.since ) {
         const path = (await client.query(`
-      SELECT path FROM post WHERE id=$1`, [ query.since ])).rows[ 0 ].path
+      SELECT path FROM ${TABLE_NAME} post WHERE id=$1`, [ query.since ])).rows[ 0 ].path
         
         SINCE = `AND path ${ ORDER_TYPE === 'DESC' ? '<' : '>' } '${ path }'`
       }
@@ -277,14 +277,3 @@ export const THREAD_MODEL = {
 }
 
 export default THREAD_MODEL
-/*
-WITH tree AS (
-  SELECT subpath(path, 0, 1) as st FROM "post_mx31h4ukaz3ar" post
-  WHERE thread=5001 AND parent = 0
-  ORDER BY path DESC LIMIT 17
-)
-SELECT post.id, post.parent, post.author,
-post.message, post.forum, post.thread, post.created FROM tree
-JOIN "post_mx31h4ukaz3ar" post ON tree.st = subpath(post.path, 0, 1)
-ORDER BY st DESC, post.path ASC
- */
