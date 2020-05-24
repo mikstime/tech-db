@@ -26,7 +26,8 @@ RUN /etc/init.d/postgresql start &&\
 # database are possible.
 RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/$PGVER/main/pg_hba.conf
 RUN echo "random_page_cost = 1.0" >> /etc/postgresql/$PGVER/main/postgresql.conf
-#RUN echo "max_wal_size = 100" >> /etc/postgresql/$PGVER/main/postgresql.conf
+RUN echo "work_mem = 16MB" >> /etc/postgresql/$PGVER/main/postgresql.conf
+RUN echo "maintenance_work_mem = 256MB" >> /etc/postgresql/$PGVER/main/postgresql.conf
 #RUN echo "max_connections = 100" >> /etc/postgresql/$PGVER/main/postgresql.conf
 RUN echo "listen_addresses='*'\nsynchronous_commit = off\nfsync = off\nshared_buffers = 400MB\nfull_page_writes = off\nfsync = off\nwal_writer_delay = 10000ms" >> /etc/postgresql/$PGVER/main/postgresql.conf
 # And add ``listen_addresses`` to ``/etc/postgresql/$PGVER/main/postgresql.conf``
