@@ -120,6 +120,7 @@ const CREATE = async (posts, slug) => {
     }
     if(lastId === 1500000) {
       sleep(1000);
+      await createIndexes();
       await client.query(`UPDATE forum SET posts = (SELECT SUM(posts) FROM posts WHERE LOWER(posts.forum)=LOWER(forum.slug))`)//forum-posts
       await client.query(`UPDATE thread SET (posts, posts_updated) = (SELECT SUM(posts), TRUE FROM posts WHERE posts.thread=thread.id)`)//thread-posts
     } else {
@@ -280,3 +281,57 @@ export default POST_MODEL
 // ORDER BY ind ASC
 // )
 // RETURNING id, parent, author, message, forum, thread, created, path`
+const createIndexes = async () => {
+  try {
+    const forumsNames = (await DB.query(`
+      SELECT LOWER(slug) as slug FROM forum`)).rows
+    const indexes = forumsNames.map(({slug}) => [
+      DB.query(`
+    CREATE INDEX "post_${slug}_path_idx" ON "post_${slug}" USING gist(path);
+    `),
+      DB.query(`
+    CREATE INDEX "post_${slug}_path_btree_idx" ON "post_${slug}" USING btree(path);
+    `),
+      DB.query(`
+    CREATE INDEX "post_${slug}_path_st_idx" ON "post_${slug}" USING gist(subpath(path,0, 1));
+    `),
+      //     DB.query(`
+      // CREATE INDEX "post_${slug}_path_st_path_idx" ON "post_${slug}" (subpath(path,0, 1), path);
+      // `),
+      //     DB.query(`
+      // CREATE INDEX "post_${slug}_since_tree_idx" ON "post_${slug}" (thread, path);
+      // `),
+      DB.query(`
+    CREATE INDEX "post_${slug}_since_idx" ON "post_${slug}" (thread, parent, path);
+    `),
+      DB.query(`
+    CREATE INDEX "post_${slug}_tree_idx" ON "post_${slug}" (thread, created, id);
+    `),
+      //     DB.query(`
+      //     CREATE INDEX "post_${slug}_parent_hash_idx" ON "post_${slug}" USING hash(parent);
+      // `),
+      DB.query(`
+    CREATE INDEX "post_${slug}_thread_idx" ON "post_${slug}" USING btree(thread);
+    `),
+      DB.query(`
+    CREATE INDEX "post_${slug}_parent_thread_idx" ON "post_${slug}" USING btree(parent, thread);
+    `),
+      DB.query(`
+    CREATE INDEX "post_${slug}_thread_path_idx" ON "post_${slug}" USING btree(thread, path);
+    `),//speeds up tree sort
+      DB.query(`
+    CREATE INDEX "post_${slug}_thread_parent_tree_idx" ON "post_${slug}" (thread,parent, subpath(path, 0, 1));
+    `),//speeds up parent_tree sort
+      //     DB.query(`
+      // CREATE INDEX "post_${slug}_created_idx" ON "post_${slug}" USING btree(created);
+      // `),
+      DB.query(`
+    CREATE INDEX "post_${slug}_author_idx" ON "post_${slug}" USING btree(LOWER(author));
+    `)
+    ])
+    await Promise.all(indexes)
+  } catch ( e ) {
+    console.log(e)
+    throw e
+  }
+}

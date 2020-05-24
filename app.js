@@ -12,10 +12,10 @@ import THREAD_ROUTES from './api/routes/thread'
 const app = express();
 import  './api/models'
 
-app.use(logger('tiny', {
-  skip: function (req, res) {
-    return new Date(res._startTime) - new Date(req._startTime) < 100 || req.method !== 'GET' }
-}))
+// app.use(logger('tiny', {
+//   skip: function (req, res) {
+//     return new Date(res._startTime) - new Date(req._startTime) < 100 || req.method !== 'GET' }
+// }))
 // app.use(logger('dev'))
 app.use(express.json())
 

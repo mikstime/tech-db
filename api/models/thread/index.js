@@ -214,18 +214,17 @@ const GET_POSTS = async (slug, query) => {
         WITH tree AS (
         SELECT subpath(path, 0, 1) as st FROM ${TABLE_NAME} post
         WHERE thread=$1 AND parent = 0 ${ SINCE }
-        ORDER BY path ${ ORDER_TYPE } ${ LIMIT }
+        ORDER BY subpath(path, 0, 1) ${ ORDER_TYPE } ${ LIMIT }
         )
       SELECT post.id, post.parent, post.author,
       post.message, post.forum, post.thread, post.created FROM tree
-      JOIN ${TABLE_NAME} post ON tree.st = subpath(post.path, 0, 1)
-      ORDER BY st ${ ORDER_TYPE }, post.path ASC
+      JOIN ${TABLE_NAME} post ON tree.st = subpath(post.path, 0, 1) AND thread=$1
+      ORDER BY subpath(post.path, 0, 1) ${ ORDER_TYPE }, post.path ASC
       `, [ threadId ])
       
       await client.query('COMMIT')
       return posts.rows
     }
-    // const SINCE2 = Number(query.since) ? `AND post.id > ${query.since}` : ''
     const SINCE2 = Number(query.since) ? `AND post.id ${ ORDER_TYPE === 'DESC' ? '<' : '>' } ${ query.since }` : ''
     const posts = await client.query(`
         SELECT id, parent, author, message, forum, thread, created

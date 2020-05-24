@@ -35,7 +35,7 @@ const CREATE = async ({ user, title, slug }) => {
   try {
     await client.query('BEGIN')
     const forum = await client.query(CREATE_QUERY, [ user, title, slug ])
-    //@TODO create post partition
+    
     if ( !forum.rows.length )
       return null
     const tableName = `post_${ forum.rows[ 0 ].slug.toLowerCase() }`
@@ -47,48 +47,54 @@ const CREATE = async ({ user, title, slug }) => {
         client.query(`
     CREATE INDEX "${ tableName }_id_idx" ON "${ tableName }" USING btree(id);
     `),
-        client.query(`
-    CREATE INDEX "${ tableName }_path_idx" ON "${ tableName }" USING gist(path);
-    `),
-        client.query(`
-    CREATE INDEX "${ tableName }_path_btree_idx" ON "${ tableName }" USING btree(path);
-    `),
-        client.query(`
-    CREATE INDEX "${ tableName }_path_st_idx" ON "${ tableName }" USING gist(subpath(path,0, 1));
-    `),
+    //     client.query(`
+    // CREATE INDEX "${ tableName }_path_idx" ON "${ tableName }" USING gist(path);
+    // `),
+    //     client.query(`
+    // CREATE INDEX "${ tableName }_path_btree_idx" ON "${ tableName }" USING btree(path);
+    // `),
+    //     client.query(`
+    // CREATE INDEX "${ tableName }_path_st_idx" ON "${ tableName }" USING gist(subpath(path,0, 1));
+    // `),
     //     client.query(`
     // CREATE INDEX "${ tableName }_path_st_path_idx" ON "${ tableName }" (subpath(path,0, 1), path);
     // `),
     //     client.query(`
     // CREATE INDEX "${ tableName }_since_tree_idx" ON "${ tableName }" (thread, path);
     // `),
-        client.query(`
-    CREATE INDEX "${ tableName }_since_idx" ON "${ tableName }" (thread, parent, path);
-    `),
+    //     client.query(`
+    // CREATE INDEX "${ tableName }_since_idx" ON "${ tableName }" (thread, parent, path);
+    // `),
         client.query(`
     CREATE INDEX "${ tableName }_parent_idx" ON "${ tableName }" USING btree(parent);
     `),
     //     client.query(`
+    // CREATE INDEX "${ tableName }_tree_idx" ON "${ tableName }" (thread, created, id);
+    // `),
+    //     client.query(`
     //     CREATE INDEX "${ tableName }_parent_hash_idx" ON "${ tableName }" USING hash(parent);
     // `),
-        client.query(`
-    CREATE INDEX "${ tableName }_thread_idx" ON "${ tableName }" USING btree(thread);
-    `),
-        client.query(`
-    CREATE INDEX "${ tableName }_parent_thread_idx" ON "${ tableName }" USING btree(parent, thread);
-    `),
-        client.query(`
-    CREATE INDEX "${ tableName }_thread_path_idx" ON "${ tableName }" USING btree(thread, path);
-    `),//speeds up tree sort
+    //     client.query(`
+    // CREATE INDEX "${ tableName }_thread_idx" ON "${ tableName }" USING btree(thread);
+    // `),
+    //     client.query(`
+    // CREATE INDEX "${ tableName }_parent_thread_idx" ON "${ tableName }" USING btree(parent, thread);
+    // `),
+    //     client.query(`
+    // CREATE INDEX "${ tableName }_thread_path_idx" ON "${ tableName }" USING btree(thread, path);
+    //`),//speeds up tree sort
+        // client.query(`
+    // CREATE INDEX "${ tableName }_thread_parent_tree_idx" ON "${ tableName }" (thread,parent, subpath(path, 0, 1));
+    // `),//speeds up parent_tree sort
     //     client.query(`
     // CREATE INDEX "${ tableName }_created_idx" ON "${ tableName }" USING btree(created);
     // `),
-        client.query(`
-    CREATE INDEX "${ tableName }_author_idx" ON "${ tableName }" USING btree(LOWER(author));
-    `)
+    //     client.query(`
+    // CREATE INDEX "${ tableName }_author_idx" ON "${ tableName }" USING btree(LOWER(author));
+    // `)
       ]
     )
-    
+
     await client.query('COMMIT')
     return forum.rows[ 0 ]
   } catch ( e ) {
