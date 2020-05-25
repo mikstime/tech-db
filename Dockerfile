@@ -6,7 +6,7 @@ ENV TZ=Russia/Moscow
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # Обвновление списка пакетов
 RUN apt-get -y update
-RUN apt install -y git wget gcc gnupg --fix-missing
+RUN apt install -y git wget gcc gnupg
 
 
 #ENV PGVER 10
