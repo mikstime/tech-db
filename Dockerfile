@@ -2,7 +2,7 @@ FROM ubuntu:18.04
 
 MAINTAINER Balitsky M. M.
 
-ENV TZ=Russia/Moscow
+ENV TZ=Europe/Moscow
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # Обвновление списка пакетов
 RUN apt-get -y update
