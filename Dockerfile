@@ -2,15 +2,20 @@ FROM ubuntu:18.04
 
 MAINTAINER Balitsky M. M.
 
-ENV TZ=Russia/Moscow
+ENV TZ=Europe/Moscow
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # Обвновление списка пакетов
 RUN apt-get -y update
+RUN apt install -y git wget gcc gnupg
 
 
-
-ENV PGVER 10
-RUN apt update && apt -y install postgresql-$PGVER
+ENV PGVER 12
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+RUN wget https://www.postgresql.org/media/keys/ACCC4CF8.asc
+RUN apt-key add ACCC4CF8.asc
+RUN apt-get update
+RUN apt-get install -y  postgresql-$PGVER
+#RUN apt update && apt -y install postgresql-$PGVER
 
 # Run the rest of the commands as the ``postgres`` user created by the ``postgres-$PGVER`` package when it was ``apt-get installed``
 USER postgres
@@ -20,6 +25,7 @@ USER postgres
 RUN /etc/init.d/postgresql start &&\
     psql --command "CREATE USER docker WITH SUPERUSER PASSWORD 'docker';" &&\
     createdb -O docker docker &&\
+#    psql docker -f ./db/db.sql &&\
     /etc/init.d/postgresql stop
 
 # Adjust PostgreSQL configuration so that remote connections to the
