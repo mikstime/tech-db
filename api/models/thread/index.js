@@ -205,22 +205,25 @@ const GET_POSTS = async (slug, query) => {
     
     if ( query.sort === 'parent_tree' ) {
       let SINCE = ''
+      const args = [threadId]
       if ( query.since ) {
-        const path = (await client.query(`
-      SELECT path FROM ${TABLE_NAME} WHERE id=$1`, [ query.since ])).rows[ 0 ].path
-        SINCE = `AND post.path ${ ORDER_TYPE === 'DESC' ? '<' : '>' } '${ path.split('.')[ 0 ] }'`
+        const sinceId = (await client.query(`
+       SELECT subpath(path,0,1) as path FROM ${TABLE_NAME} WHERE id=$1`, [ query.since ])).rows[ 0 ].path
+       //  SINCE = `AND post.path ${ ORDER_TYPE === 'DESC' ? '<' : '>' } '${ path.split('.')[ 0 ] }'`
+        SINCE = `AND id ${ ORDER_TYPE === 'DESC' ? '<' : '>' } $2::int`
+        args.push(sinceId)
       }
       const posts = await client.query(`
         WITH tree AS (
         SELECT subpath(path, 0, 1) as st FROM ${TABLE_NAME} post
         WHERE thread=$1 AND parent = 0 ${ SINCE }
-        ORDER BY subpath(path, 0, 1) ${ ORDER_TYPE } ${ LIMIT }
+        ORDER BY id ${ ORDER_TYPE } ${ LIMIT }
         )
       SELECT post.id, post.parent, post.author,
       post.message, post.forum, post.thread, post.created FROM tree
       JOIN ${TABLE_NAME} post ON tree.st = subpath(post.path, 0, 1) AND thread=$1
       ORDER BY subpath(post.path, 0, 1) ${ ORDER_TYPE }, post.path ASC
-      `, [ threadId ])
+      `, args)
       
       await client.query('COMMIT')
       return posts.rows
@@ -276,3 +279,14 @@ export const THREAD_MODEL = {
 }
 
 export default THREAD_MODEL
+/*
+WITH tree AS (
+SELECT subpath(path, 0, 1) as st FROM "post_025bm-kk9tl3k" post
+WHERE thread=8317 AND parent = 0 AND id > '01247322'::int
+ORDER BY id  LIMIT 18
+)
+SELECT post.id, post.parent, post.author,
+post.message, post.forum, post.thread, post.created FROM tree
+JOIN "post_025bm-kk9tl3k" post ON tree.st = subpath(post.path, 0, 1) AND thread=8317
+ORDER BY subpath(post.path, 0, 1) , post.path ASC
+ */

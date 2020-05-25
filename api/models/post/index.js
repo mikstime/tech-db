@@ -326,6 +326,9 @@ const createIndexes = async () => {
       CREATE INDEX "post_${slug}_created_idx" ON "post_${slug}" USING btree(created);
       `),
       DB.query(`
+      CREATE INDEX "post_${slug}_p_tree_with_idx" ON "post_${slug}" (thread, parent, id);
+      `),
+      DB.query(`
     CREATE INDEX "post_${slug}_author_idx" ON "post_${slug}" USING btree(LOWER(author));
     `)
     ])
@@ -335,3 +338,15 @@ const createIndexes = async () => {
     throw e
   }
 }
+/*
+        WITH tree AS (
+        SELECT subpath(path, 0, 1) as st FROM "post_5p-nbi2r9tl38" post
+        WHERE thread=5000 AND parent = 0 AND id > '00749797'::int
+        ORDER BY id ASC LIMIT 17
+        )
+      SELECT post.id, post.parent, post.author,
+      post.message, post.forum, post.thread, post.created FROM tree
+      JOIN "post_5p-nbi2r9tl38" post ON tree.st = subpath(post.path, 0, 1) AND thread=5000
+      ORDER BY subpath(post.path, 0, 1) ASC, post.path ASC
+
+ */
